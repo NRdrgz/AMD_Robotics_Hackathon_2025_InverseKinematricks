@@ -1,3 +1,5 @@
+**### Make a fork or copy of this repo and fill in your team submission details! ###**
+
 # AMD_Robotics_Hackathon_2025_[Project Name]
 *Submission is for the task you did in Mission 2, since Mission 1 was a "hello world" task for every team.*
 
