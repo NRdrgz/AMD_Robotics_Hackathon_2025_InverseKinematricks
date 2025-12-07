@@ -19,8 +19,10 @@
 
 ### 3. Technical implementations (20 points)
 - *Teleoperation / Dataset capture*
+    - *<Image/video of teleoperation or dataset capture>*
 - *Training*
 - *Inference*
+    - *<Image/video of inference eval>*
 
 ### 4. Ease of use (10 points)
 - *How generalizable is your implementation across tasks or environments?*
