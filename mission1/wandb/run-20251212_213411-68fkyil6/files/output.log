@@ -1,0 +1,97 @@
+INFO 2025-12-12 21:34:12 db_utils.py:102 [1m[34mLogs will be synced with wandb.[0m
+INFO 2025-12-12 21:34:12 db_utils.py:103 Track this run --> [1m[33mhttps://wandb.ai/fengxiao0730-/lerobot/runs/68fkyil6[0m
+INFO 2025-12-12 21:34:12 ot_train.py:183 Creating dataset
+meta/episodes/chunk-000/file-001.parquet: 100%|█| 57.4k/57.4k [00:00<00:00, 196k
+meta/episodes/chunk-000/file-000.parquet: 100%|█| 54.3k/54.3k [00:00<00:00, 188k
+meta/episodes/chunk-000/file-006.parquet: 100%|█| 60.6k/60.6k [00:00<00:00, 185k
+meta/episodes/chunk-000/file-004.parquet: 100%|█| 58.9k/58.9k [00:00<00:00, 183k
+meta/episodes/chunk-000/file-005.parquet: 100%|█| 58.8k/58.8k [00:00<00:00, 123k
+meta/episodes/chunk-000/file-010.parquet: 100%|█| 58.7k/58.7k [00:00<00:00, 272k
+meta/episodes/chunk-000/file-012.parquet: 100%|█| 58.8k/58.8k [00:00<00:00, 411k
+info.json: 3.23kB [00:00, 10.2MB/s]rquet: 100%|█| 58.8k/58.8k [00:00<00:00, 412k
+meta/tasks.parquet: 100%|██████████████████| 2.36k/2.36k [00:00<00:00, 13.7kB/s]
+meta/episodes/chunk-000/file-007.parquet: 100%|█| 58.7k/58.7k [00:00<00:00, 171k
+meta/episodes/chunk-000/file-002.parquet: 100%|█| 57.4k/57.4k [00:00<00:00, 278k
+meta/episodes/chunk-000/file-008.parquet: 100%|█| 58.7k/58.7k [00:00<00:00, 220k
+meta/episodes/chunk-000/file-003.parquet: 100%|█| 58.8k/58.8k [00:00<00:00, 224k
+meta/episodes/chunk-000/file-011.parquet: 100%|█| 58.8k/58.8k [00:00<00:00, 285k
+stats.json: 13.0kB [00:00, 50.6MB/s]quet: 100%|█| 58.8k/58.8k [00:00<00:00, 286k
+meta/episodes/chunk-000/file-009.parquet: 100%|█| 58.9k/58.9k [00:00<00:00, 266k
+Fetching 16 files: 100%|████████████████████████| 16/16 [00:03<00:00,  4.79it/s]
+videos/observation.images.top/chunk-000/(…): 100%|█| 5.23M/5.23M [00:00<00:00, 2
+videos/observation.images.top/chunk-000/(…): 100%|█| 11.0M/11.0M [00:00<00:00, 2
+videos/observation.images.top/chunk-000/(…): 100%|█| 12.0M/12.0M [00:00<00:00, 3
+videos/observation.images.top/chunk-000/(…): 100%|█| 10.1M/10.1M [00:00<00:00, 2
+videos/observation.images.top/chunk-000/(…): 100%|█| 13.3M/13.3M [00:00<00:00, 3
+videos/observation.images.top/chunk-000/(…): 100%|█| 12.3M/12.3M [00:00<00:00, 2
+videos/observation.images.top/chunk-000/(…): 100%|█| 10.7M/10.7M [00:00<00:00, 2
+videos/observation.images.top/chunk-000/(…): 100%|█| 11.9M/11.9M [00:00<00:00, 1
+videos/observation.images.top/chunk-000/(…): 100%|█| 14.1M/14.1M [00:00<00:00, 4
+videos/observation.images.top/chunk-000/(…): 100%|█| 17.5M/17.5M [00:00<00:00, 5
+videos/observation.images.wrist/chunk-00(…): 100%|█| 6.98M/6.98M [00:00<00:00, 2
+videos/observation.images.top/chunk-000/(…): 100%|█| 20.6M/20.6M [00:00<00:00, 4
+videos/observation.images.top/chunk-000/(…): 100%|█| 16.1M/16.1M [00:00<00:00, 3
+videos/observation.images.wrist/chunk-00(…): 100%|█| 12.4M/12.4M [00:00<00:00, 2
+.gitattributes: 2.46kB [00:00, 15.5MB/s](…):   0%|  | 0.00/19.1M [00:00<?, ?B/s]
+videos/observation.images.wrist/chunk-00(…): 100%|█| 19.1M/19.1M [00:00<00:00, 3
+videos/observation.images.wrist/chunk-00(…): 100%|█| 18.4M/18.4M [00:00<00:00, 3
+videos/observation.images.wrist/chunk-00(…): 100%|█| 19.1M/19.1M [00:00<00:00, 3
+videos/observation.images.wrist/chunk-00(…): 100%|█| 10.9M/10.9M [00:00<00:00, 2
+videos/observation.images.wrist/chunk-00(…): 100%|█| 14.6M/14.6M [00:00<00:00, 1
+videos/observation.images.wrist/chunk-00(…): 100%|█| 26.6M/26.6M [00:00<00:00, 6
+videos/observation.images.wrist/chunk-00(…): 100%|█| 13.2M/13.2M [00:00<00:00, 4
+videos/observation.images.wrist/chunk-00(…): 100%|█| 20.5M/20.5M [00:00<00:00, 3
+videos/observation.images.wrist/chunk-00(…): 100%|█| 21.1M/21.1M [00:00<00:00, 4
+videos/observation.images.wrist/chunk-00(…): 100%|█| 14.3M/14.3M [00:00<00:00, 2
+videos/observation.images.top/chunk-000/(…): 100%|█| 14.9M/14.9M [00:00<00:00, 3
+videos/observation.images.wrist/chunk-00(…): 100%|█| 29.1M/29.1M [00:00<00:00, 5
+Fetching 57 files: 100%|████████████████████████| 57/57 [00:05<00:00, 10.98it/s]
+INFO 2025-12-12 21:34:21 ot_train.py:202 Creating policy
+INFO 2025-12-12 21:34:22 ot_train.py:247 Creating optimizer and scheduler
+INFO 2025-12-12 21:34:22 ot_train.py:259 [1m[33mOutput dir:[0m outputs/train/hackathon_amd_mission1
+INFO 2025-12-12 21:34:22 ot_train.py:262 cfg.steps=5000 (5K)9.1M [00:00<00:00, 5
+INFO 2025-12-12 21:34:22 ot_train.py:263 dataset.num_frames=19460 (19K)
+INFO 2025-12-12 21:34:22 ot_train.py:264 dataset.num_episodes=61
+INFO 2025-12-12 21:34:22 ot_train.py:267 Effective batch size: 64 x 1 = 64
+INFO 2025-12-12 21:34:22 ot_train.py:268 num_learnable_params=51561350 (52M)
+INFO 2025-12-12 21:34:22 ot_train.py:269 num_total_params=51561350 (52M)
+INFO 2025-12-12 21:34:22 ot_train.py:324 Start offline training on a fixed dataset
+INFO 2025-12-12 21:41:48 ot_train.py:351 step:200 smpl:13K ep:40 epch:0.66 loss:3.344 grdn:62.015 lr:5.0e-05 updt_s:2.210 data_s:0.021
+INFO 2025-12-12 21:44:36 ot_train.py:351 step:400 smpl:26K ep:80 epch:1.32 loss:1.105 grdn:33.670 lr:5.0e-05 updt_s:0.810 data_s:0.028
+INFO 2025-12-12 21:45:26 ot_train.py:351 step:600 smpl:38K ep:120 epch:1.97 loss:0.598 grdn:24.807 lr:5.0e-05 updt_s:0.242 data_s:0.010
+INFO 2025-12-12 21:46:20 ot_train.py:351 step:800 smpl:51K ep:160 epch:2.63 loss:0.389 grdn:19.921 lr:5.0e-05 updt_s:0.241 data_s:0.029
+INFO 2025-12-12 21:47:14 ot_train.py:351 step:1K smpl:64K ep:201 epch:3.29 loss:0.294 grdn:17.126 lr:5.0e-05 updt_s:0.240 data_s:0.028
+INFO 2025-12-12 21:48:04 ot_train.py:351 step:1K smpl:77K ep:241 epch:3.95 loss:0.244 grdn:14.908 lr:5.0e-05 updt_s:0.241 data_s:0.009
+INFO 2025-12-12 21:48:58 ot_train.py:351 step:1K smpl:90K ep:281 epch:4.60 loss:0.214 grdn:14.073 lr:5.0e-05 updt_s:0.240 data_s:0.029
+INFO 2025-12-12 21:49:52 ot_train.py:351 step:2K smpl:102K ep:321 epch:5.26 loss:0.187 grdn:12.993 lr:5.0e-05 updt_s:0.241 data_s:0.030
+INFO 2025-12-12 21:50:43 ot_train.py:351 step:2K smpl:115K ep:361 epch:5.92 loss:0.168 grdn:12.350 lr:5.0e-05 updt_s:0.243 data_s:0.009
+INFO 2025-12-12 21:51:38 ot_train.py:351 step:2K smpl:128K ep:401 epch:6.58 loss:0.156 grdn:11.904 lr:5.0e-05 updt_s:0.241 data_s:0.031
+INFO 2025-12-12 21:51:38 ot_train.py:361 Checkpoint policy after step 2000
+INFO 2025-12-12 21:52:34 ot_train.py:351 step:2K smpl:141K ep:441 epch:7.24 loss:0.143 grdn:11.151 lr:5.0e-05 updt_s:0.241 data_s:0.034
+INFO 2025-12-12 21:53:24 ot_train.py:351 step:2K smpl:154K ep:481 epch:7.89 loss:0.133 grdn:10.284 lr:5.0e-05 updt_s:0.241 data_s:0.009
+INFO 2025-12-12 21:54:19 ot_train.py:351 step:3K smpl:166K ep:522 epch:8.55 loss:0.127 grdn:9.122 lr:5.0e-05 updt_s:0.240 data_s:0.031
+INFO 2025-12-12 21:55:13 ot_train.py:351 step:3K smpl:179K ep:562 epch:9.21 loss:0.117 grdn:8.740 lr:5.0e-05 updt_s:0.240 data_s:0.032
+INFO 2025-12-12 21:56:03 ot_train.py:351 step:3K smpl:192K ep:602 epch:9.87 loss:0.109 grdn:8.052 lr:5.0e-05 updt_s:0.242 data_s:0.009
+INFO 2025-12-12 21:56:58 ot_train.py:351 step:3K smpl:205K ep:642 epch:10.52 loss:0.106 grdn:7.656 lr:5.0e-05 updt_s:0.241 data_s:0.031
+INFO 2025-12-12 21:57:52 ot_train.py:351 step:3K smpl:218K ep:682 epch:11.18 loss:0.099 grdn:7.414 lr:5.0e-05 updt_s:0.241 data_s:0.030
+INFO 2025-12-12 21:58:42 ot_train.py:351 step:4K smpl:230K ep:722 epch:11.84 loss:0.094 grdn:6.975 lr:5.0e-05 updt_s:0.241 data_s:0.009
+INFO 2025-12-12 21:59:37 ot_train.py:351 step:4K smpl:243K ep:762 epch:12.50 loss:0.092 grdn:6.832 lr:5.0e-05 updt_s:0.240 data_s:0.031
+INFO 2025-12-12 22:00:31 ot_train.py:351 step:4K smpl:256K ep:802 epch:13.16 loss:0.090 grdn:6.603 lr:5.0e-05 updt_s:0.240 data_s:0.029
+INFO 2025-12-12 22:00:31 ot_train.py:361 Checkpoint policy after step 4000
+INFO 2025-12-12 22:01:22 ot_train.py:351 step:4K smpl:269K ep:843 epch:13.81 loss:0.086 grdn:6.405 lr:5.0e-05 updt_s:0.242 data_s:0.009
+INFO 2025-12-12 22:02:17 ot_train.py:351 step:4K smpl:282K ep:883 epch:14.47 loss:0.084 grdn:6.362 lr:5.0e-05 updt_s:0.240 data_s:0.033
+INFO 2025-12-12 22:03:12 ot_train.py:351 step:5K smpl:294K ep:923 epch:15.13 loss:0.082 grdn:6.311 lr:5.0e-05 updt_s:0.240 data_s:0.034
+INFO 2025-12-12 22:04:02 ot_train.py:351 step:5K smpl:307K ep:963 epch:15.79 loss:0.080 grdn:5.983 lr:5.0e-05 updt_s:0.241 data_s:0.009
+INFO 2025-12-12 22:04:57 ot_train.py:351 step:5K smpl:320K ep:1K epch:16.44 loss:0.080 grdn:6.108 lr:5.0e-05 updt_s:0.240 data_s:0.033
+INFO 2025-12-12 22:04:57 ot_train.py:361 Checkpoint policy after step 5000
+INFO 2025-12-12 22:05:03 ot_train.py:430 End of training
+Processing Files (1 / 1)      : 100%|██████████████|  206MB /  206MB, 73.7MB/s  
+New Data Upload               : 100%|██████████████|  206MB /  206MB, 73.5MB/s  
+  ...ission1/model.safetensors: 100%|██████████████|  206MB /  206MB            
+INFO 2025-12-12 22:05:08 etrained.py:237 Model pushed to https://huggingface.co/giacomoran/hackathon_amd_mission1
+Processing Files (1 / 1)      : 100%|██████████████| 7.54kB / 7.54kB,  0.00B/s  
+New Data Upload               : 100%|██████████████| 7.54kB / 7.54kB,  0.00B/s  
+  ...zer_processor.safetensors: 100%|██████████████| 7.54kB / 7.54kB
+Processing Files (1 / 1)      : 100%|██████████████| 7.54kB / 7.54kB,  0.00B/s  
+New Data Upload               : |                  |  0.00B /  0.00B,  0.00B/s  
+  ...zer_processor.safetensors: 100%|██████████████| 7.54kB / 7.54kB
