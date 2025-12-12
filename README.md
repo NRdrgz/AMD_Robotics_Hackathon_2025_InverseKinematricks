@@ -3,7 +3,8 @@
 ## Team Information
 
 **Team:**
-Team Number: 6
+
+Team Number: 6  
 Team Name: Inverse Kinema-tricks  
 Members: Xiao Feng, Giacomo Randazzo, Nicolas Rodriguez
 
