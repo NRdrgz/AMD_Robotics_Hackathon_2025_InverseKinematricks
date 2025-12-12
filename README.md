@@ -1,11 +1,10 @@
-**### Make a fork or copy of this repo and fill in your team submission details! ###**
-
 # AMD_Robotics_Hackathon_2025_[Project Name]
 
 ## Team Information
 
-**Team:** *Your team number, name of your team, and members*  
+**Team:**
 
+Team Number: 6  
 Team Name: Inverse Kinema-tricks  
 Members: Xiao Feng, Giacomo Randazzo, Nicolas Rodriguez
 
@@ -35,6 +34,13 @@ Members: Xiao Feng, Giacomo Randazzo, Nicolas Rodriguez
 - *Types of commands or interfaces needed to control the robot*
 
 ## Additional Links
+
+- Mission 1:
+    - [README](https://github.com/NRdrgz/AMD_Robotics_Hackathon_2025_InverseKinematricks/blob/main/mission1/README.md)
+    - [video](https://github.com/NRdrgz/AMD_Robotics_Hackathon_2025_InverseKinematricks/raw/refs/heads/main/mission1/videos/trained_policy_mission_1.mp4)
+    - [dataset on HF](https://huggingface.co/datasets/giacomoran/hackathon_amd_mission1)
+    - [model on HF](https://huggingface.co/giacomoran/hackathon_amd_mission1)
+
 *For example, you can provide links to:*
 
 - *Link to a video of your robot performing the task*
