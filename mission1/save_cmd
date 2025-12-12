@@ -1,0 +1,79 @@
+Leader: 1st USB from Lower USBC
+/dev/ttyACM0
+
+Follower: 2nd USB from Lower USBC
+/dev/ttyACM1
+
+3rd usb wrist camera
+4th usb lamp camera
+
+
+# calibrate leader
+lerobot-calibrate \
+    --teleop.type=so101_leader \
+    --teleop.port=/dev/ttyACM0 \
+    --teleop.id=black_leader
+
+
+# calibrate follower
+lerobot-calibrate \
+    --robot.type=so101_follower \
+    --robot.port=/dev/ttyACM1 \
+    --robot.id=black_follower
+
+
+# teleop
+lerobot-teleoperate \
+    --robot.type=so101_follower \
+    --robot.port=/dev/ttyACM1 \
+    --robot.id=black_follower \
+    --teleop.type=so101_leader \
+    --teleop.port=/dev/ttyACM0 \
+    --teleop.id=black_leader
+
+
+# teleop with cameras
+lerobot-teleoperate \
+    --robot.type=so101_follower \
+    --robot.port=/dev/ttyACM1 \
+    --robot.id=black_follower \
+    --robot.cameras="{top: {type: opencv, index_or_path: /dev/video2, width: 640, height: 480, fps: 30}, wrist: {type: opencv, index_or_path: /dev/video4, width: 640, height: 480, fps: 30}}" \
+    --teleop.type=so101_leader \
+    --teleop.port=/dev/ttyACM0 \
+    --teleop.id=black_leader \
+    --display_data=true
+
+# record mission 1 dataset
+lerobot-record \
+    --robot.type=so101_follower \
+    --robot.port=/dev/ttyACM1 \
+    --robot.id=black_follower \
+    --robot.cameras="{top: {type: opencv, index_or_path: /dev/video2, width: 640, height: 480, fps: 30}, wrist: {type: opencv, index_or_path: /dev/video4, width: 640, height: 480, fps: 30}}" \
+    --teleop.type=so101_leader \
+    --teleop.port=/dev/ttyACM0 \
+    --teleop.id=black_leader \
+    --dataset.repo_id="giacomoran/hackathon_amd_mission1" \
+    --dataset.num_episodes=60 \
+    --dataset.episode_time_s=20 \
+    --dataset.reset_time_s=10 \
+    --dataset.single_task="pickup the green cube and place it on the yellow cross" \
+    --dataset.root="/home/nico/hackathon_amd_mission1_dataset/" \
+    --dataset.video_encoding_batch_size=10
+
+# resume recording dataset mission 1
+lerobot-record \
+    --robot.type=so101_follower \
+    --robot.port=/dev/ttyACM1 \
+    --robot.id=black_follower \
+    --robot.cameras="{top: {type: opencv, index_or_path: /dev/video2, width: 640, height: 480, fps: 30}, wrist: {type: opencv, index_or_path: /dev/video4, width: 640, height: 480, fps: 30}}" \
+    --teleop.type=so101_leader \
+    --teleop.port=/dev/ttyACM0 \
+    --teleop.id=black_leader \
+    --dataset.repo_id="giacomoran/hackathon_amd_mission1" \
+    --dataset.num_episodes=42 \
+    --dataset.episode_time_s=20 \
+    --dataset.reset_time_s=10 \
+    --dataset.single_task="pickup the green cube and place it on the yellow cross" \
+    --dataset.root="/home/nico/hackathon_amd_mission1_dataset/" \
+    --resume=true \
+    --dataset.video_encoding_batch_size=10
