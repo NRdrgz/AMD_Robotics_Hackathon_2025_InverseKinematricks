@@ -15,13 +15,13 @@ from threading import Event, Lock, Thread
 from typing import TYPE_CHECKING
 
 from communication.messages import SystemState
-from lerobot.common.utils.utils import precise_sleep
 from lerobot.processor.factory import (
     make_default_robot_action_processor,
     make_default_robot_observation_processor,
 )
 from lerobot.robots import Robot
 from lerobot.robots.utils import make_robot_from_config
+from lerobot.utils import precise_sleep
 from policies.base import PolicyWrapper
 from torch import Tensor
 

@@ -8,14 +8,14 @@ This script:
 4. Manages state transitions based on commands from the conveyor computer
 
 Usage:
-    uv run src/main_arms.py \
+    python src/main_arms.py \
         --blue-arm-port=/dev/ttyACM0 \
         --black-arm-port=/dev/ttyACM1 \
         --blue-top-camera=/dev/video6 \
         --blue-wrist-camera=/dev/video8 \
         --black-top-camera=/dev/video4 \
         --black-wrist-camera=/dev/video2 \
-        --conveyor-host=192.168.1.100 \
+        --conveyor-host=100.86.200.31 \
         --device=cuda
 """
 
