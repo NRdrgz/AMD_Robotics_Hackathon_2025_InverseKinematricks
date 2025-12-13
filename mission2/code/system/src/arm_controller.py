@@ -131,8 +131,20 @@ class ActionExecutor:
         """Stop the action executor thread."""
         if self._thread and self._thread.is_alive():
             # Put None to unblock the queue
-            self._action_queue.put(None)
-            self._thread.join(timeout=2.0)
+            try:
+                self._action_queue.put(None)
+            except Exception:
+                pass  # Queue might be full or closed
+
+            # Wait longer for thread to stop, checking periodically
+            for _ in range(20):  # 20 * 0.5s = 10 seconds total
+                if not self._thread.is_alive():
+                    break
+                time.sleep(0.5)
+            if self._thread.is_alive():
+                logger.warning(
+                    f"{self.arm_id.value.capitalize()} executor thread did not stop gracefully"
+                )
             self._thread = None
 
     def put_action(self, action: Tensor) -> None:
@@ -168,27 +180,55 @@ class ActionExecutor:
                 try:
                     action = self._action_queue.get(timeout=0.1)
                 except Empty:
+                    # Check shutdown while waiting
+                    if self.shutdown_event.is_set():
+                        break
                     continue
 
                 if action is None:
                     # Shutdown signal
                     break
 
-                # Process and send action
-                action_cpu = action.cpu()
-                action_dict = {
-                    key: action_cpu[i].item()
-                    for i, key in enumerate(self.robot.action_features)
-                }
-                action_processed = self._robot_action_processor((action_dict, None))
-                self.robot.send_action(action_processed)
-                action_count += 1
+                if self.shutdown_event.is_set():
+                    break
 
-                # Maintain timing using time.sleep
+                # Process and send action
+                try:
+                    action_cpu = action.cpu()
+                    action_dict = {
+                        key: action_cpu[i].item()
+                        for i, key in enumerate(self.robot.action_features)
+                    }
+                    action_processed = self._robot_action_processor((action_dict, None))
+
+                    if self.shutdown_event.is_set():
+                        break
+
+                    self.robot.send_action(action_processed)
+                    action_count += 1
+                except Exception as e:
+                    logger.exception(
+                        f"Error processing action in {self.arm_id.value} executor: {e}"
+                    )
+                    # Continue loop even on error, but check shutdown
+                    if self.shutdown_event.is_set():
+                        break
+                    continue
+
+                if self.shutdown_event.is_set():
+                    break
+
+                # Maintain timing using time.sleep, checking shutdown frequently
                 dt_s = time.perf_counter() - start_time
                 busy_wait_time = action_interval - dt_s
                 if busy_wait_time > 0:
-                    time.sleep(busy_wait_time)
+                    # Sleep in small chunks to check shutdown frequently
+                    sleep_chunks = max(1, int(busy_wait_time / 0.01))
+                    chunk_size = busy_wait_time / sleep_chunks
+                    for _ in range(sleep_chunks):
+                        if self.shutdown_event.is_set():
+                            break
+                        time.sleep(chunk_size)
 
         except Exception as e:
             logger.exception(f"Error in {self.arm_id.value} executor: {e}")
@@ -249,7 +289,15 @@ class PolicyRunner:
         """Stop the policy runner thread."""
         self._active.clear()
         if self._thread and self._thread.is_alive():
-            self._thread.join(timeout=2.0)
+            # Wait longer for thread to stop, checking periodically
+            for _ in range(20):  # 20 * 0.5s = 10 seconds total
+                if not self._thread.is_alive():
+                    break
+                time.sleep(0.5)
+            if self._thread.is_alive():
+                logger.warning(
+                    f"{self.arm_id.value.capitalize()} policy runner thread did not stop gracefully"
+                )
             self._thread = None
 
     def set_policy(self, policy: PolicyWrapper | None) -> None:
@@ -303,48 +351,85 @@ class PolicyRunner:
 
         try:
             while not self.shutdown_event.is_set():
-                # Wait until active
+                # Wait until active, checking shutdown frequently
                 if not self._active.wait(timeout=0.1):
+                    if self.shutdown_event.is_set():
+                        break
                     continue
+
+                if self.shutdown_event.is_set():
+                    break
 
                 with self._policy_lock:
                     policy = self._current_policy
 
                 if policy is None:
-                    time.sleep(0.1)
+                    # Sleep in small chunks to check shutdown frequently
+                    for _ in range(10):  # 10 * 0.01s = 0.1s total
+                        if self.shutdown_event.is_set():
+                            break
+                        time.sleep(0.01)
                     continue
+
+                if self.shutdown_event.is_set():
+                    break
 
                 # Only run inference when queue is low enough
                 # This matches the pattern in eval_with_real_robot.py
                 if self.executor.queue_size > self.queue_threshold:
                     # Queue has enough actions, sleep briefly to avoid busy waiting
+                    # Check shutdown during sleep
+                    if self.shutdown_event.is_set():
+                        break
                     time.sleep(0.01)
                     continue
+
+                if self.shutdown_event.is_set():
+                    break
 
                 start_time = time.perf_counter()
 
                 try:
-                    # Get observation
+                    # Get observation - this might block, but we check shutdown before
+                    if self.shutdown_event.is_set():
+                        break
                     obs = self.robot.get_observation()
 
-                    # Get action from policy
-                    # PolicyWrapper handles observation processing internally
+                    if self.shutdown_event.is_set():
+                        break
+
+                    # Get action from policy - this might block, but we check shutdown before
                     action = policy.get_action(
                         obs,
                         self.robot.observation_features,
                     )
+
+                    if self.shutdown_event.is_set():
+                        break
 
                     if action is not None:
                         self.executor.put_action(action)
 
                 except Exception as e:
                     logger.exception(f"Error in {self.arm_id.value} inference: {e}")
+                    # Continue loop even on error, but check shutdown
+                    if self.shutdown_event.is_set():
+                        break
 
-                # Maintain timing using time.sleep
+                if self.shutdown_event.is_set():
+                    break
+
+                # Maintain timing using time.sleep, checking shutdown frequently
                 dt_s = time.perf_counter() - start_time
                 busy_wait_time = inference_interval - dt_s
                 if busy_wait_time > 0:
-                    time.sleep(busy_wait_time)
+                    # Sleep in small chunks to check shutdown frequently
+                    sleep_chunks = max(1, int(busy_wait_time / 0.01))
+                    chunk_size = busy_wait_time / sleep_chunks
+                    for _ in range(sleep_chunks):
+                        if self.shutdown_event.is_set():
+                            break
+                        time.sleep(chunk_size)
 
         except Exception as e:
             logger.exception(f"Fatal error in {self.arm_id.value} policy runner: {e}")
@@ -364,6 +449,7 @@ class ArmController:
         flip_policy: PolicyWrapper,
         sort_policy: PolicyWrapper,
         fps: float = 30.0,
+        shutdown_event: Event | None = None,
     ):
         """Initialize the arm controller.
 
@@ -374,9 +460,10 @@ class ArmController:
             flip_policy: Policy for flipping (black arm)
             sort_policy: Policy for sorting (black arm)
             fps: Action/inference frequency
+            shutdown_event: Optional shutdown event to use. If None, creates a new one.
         """
         self.fps = fps
-        self._shutdown_event = Event()
+        self._shutdown_event = shutdown_event if shutdown_event is not None else Event()
         self._state_lock = Lock()
         self._current_state = SystemState.RUNNING
 
@@ -454,13 +541,21 @@ class ArmController:
     def stop(self) -> None:
         """Stop all threads and cleanup."""
         logger.info("Stopping arm controller...")
+
+        # Set shutdown event first to signal all threads
         self._shutdown_event.set()
 
-        # Stop runners first
+        # Deactivate runners to stop producing new actions
+        self._blue_runner.deactivate()
+        self._black_runner.deactivate()
+
+        # Stop runners first (they feed executors)
+        logger.info("Stopping policy runners...")
         self._blue_runner.stop()
         self._black_runner.stop()
 
         # Then stop executors
+        logger.info("Stopping action executors...")
         self._blue_executor.stop()
         self._black_executor.stop()
 

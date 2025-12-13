@@ -17,7 +17,7 @@ Usage:
         --black-wrist-camera=/dev/video2 \
         --blue-arm-id=blue_follower \
         --black-arm-id=black_follower \
-        --conveyor-host=100.86.200.31 \
+        --conveyor-host=10.33.1.59 \
         --device=cuda
 """
 
@@ -376,6 +376,7 @@ async def run_arms_computer(args: argparse.Namespace) -> None:
             flip_policy=flip_policy,
             sort_policy=sort_policy,
             fps=args.fps,
+            shutdown_event=shutdown_event,
         )
 
         # Connect to robots
@@ -412,7 +413,11 @@ async def run_arms_computer(args: argparse.Namespace) -> None:
         # Main loop - just wait for shutdown
         logger.info("Arms computer running. Press Ctrl+C to stop.")
         while not shutdown_event.is_set():
-            await asyncio.sleep(0.1)  # Check shutdown more frequently
+            # Sleep in small chunks to check shutdown more frequently
+            for _ in range(10):  # 10 * 0.01s = 0.1s total
+                if shutdown_event.is_set():
+                    break
+                await asyncio.sleep(0.01)
 
     except Exception as e:
         logger.error(f"Fatal error: {e}")
@@ -422,12 +427,33 @@ async def run_arms_computer(args: argparse.Namespace) -> None:
         # Cleanup
         logger.info("Shutting down...")
 
-        if ws_client:
-            await ws_client.stop()
-
+        # Stop arm controller first (stops all threads)
         if arm_controller:
-            arm_controller.stop()
-            arm_controller.disconnect()
+            try:
+                arm_controller.stop()
+                logger.info("Waiting for threads to stop...")
+                # Give threads time to stop
+                import time as time_module
+
+                time_module.sleep(1.0)
+            except Exception as e:
+                logger.error(f"Error stopping arm controller: {e}")
+
+        # Stop WebSocket client
+        if ws_client:
+            try:
+                await asyncio.wait_for(ws_client.stop(), timeout=5.0)
+            except asyncio.TimeoutError:
+                logger.warning("WebSocket client stop timed out")
+            except Exception as e:
+                logger.error(f"Error stopping WebSocket client: {e}")
+
+        # Disconnect robots last
+        if arm_controller:
+            try:
+                arm_controller.disconnect()
+            except Exception as e:
+                logger.error(f"Error disconnecting robots: {e}")
 
         logger.info("Arms computer shutdown complete")
 

@@ -514,6 +514,9 @@ async def run_conveyor_computer(args: argparse.Namespace) -> None:
             # Poll CV API
             cv_status = await poll_cv_api(args.cv_api_url)
 
+            if shutdown_event.is_set():
+                break
+
             if cv_status is not None:
                 old_state = state_machine.state
 
@@ -566,7 +569,13 @@ async def run_conveyor_computer(args: argparse.Namespace) -> None:
                     last_package_detected_in_running = False
                     state_machine.process_cv_status(cv_status)
 
-            await asyncio.sleep(args.poll_interval)
+            # Sleep in small chunks to check shutdown more frequently
+            sleep_chunks = max(1, int(args.poll_interval / 0.01))
+            chunk_size = args.poll_interval / sleep_chunks
+            for _ in range(sleep_chunks):
+                if shutdown_event.is_set():
+                    break
+                await asyncio.sleep(chunk_size)
 
     except Exception as e:
         logger.error(f"Fatal error: {e}")
@@ -576,15 +585,35 @@ async def run_conveyor_computer(args: argparse.Namespace) -> None:
         # Cleanup
         logger.info("Shutting down...")
 
-        if ws_server:
-            await ws_server.stop()
-
+        # Stop belt first
         if belt_manager:
-            belt_manager.stop_belt()
-            belt_manager.disconnect()
+            try:
+                belt_manager.stop_belt()
+            except Exception as e:
+                logger.error(f"Error stopping belt: {e}")
 
+        # Stop WebSocket server
+        if ws_server:
+            try:
+                await asyncio.wait_for(ws_server.stop(), timeout=5.0)
+            except asyncio.TimeoutError:
+                logger.warning("WebSocket server stop timed out")
+            except Exception as e:
+                logger.error(f"Error stopping WebSocket server: {e}")
+
+        # Disconnect belt
+        if belt_manager:
+            try:
+                belt_manager.disconnect()
+            except Exception as e:
+                logger.error(f"Error disconnecting belt: {e}")
+
+        # Stop CV app last
         if cv_manager:
-            cv_manager.stop()
+            try:
+                cv_manager.stop()
+            except Exception as e:
+                logger.error(f"Error stopping CV app: {e}")
 
         logger.info("Conveyor belt computer shutdown complete")
 
