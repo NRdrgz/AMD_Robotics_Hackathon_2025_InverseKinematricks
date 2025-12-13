@@ -234,7 +234,11 @@ class ConveyorDetector:
             return jpeg.tobytes()
 
 
-detector = ConveyorDetector(camera_id=0)
+# Get model path relative to this script's location
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(SCRIPT_DIR, "tape_classifier.pt")
+
+detector = ConveyorDetector(camera_id=0, model_path=MODEL_PATH)
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
