@@ -1,0 +1,27 @@
+[project]
+name = "cv-classification"
+version = "0.1.0"
+description = "Computer vision classification for conveyor belt packages"
+requires-python = ">=3.11"
+dependencies = [
+    "opencv-python>=4.8.0",
+    "numpy>=1.24.0",
+    "pyzbar>=0.1.9",
+    "flask>=3.0.0",
+    "scikit-learn>=1.3.0",
+    "ultralytics>=8.0.0",
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+]
+
+[project.scripts]
+cv-app = "src.app:app.run"
+
+
+
+
+
+
+
+
+

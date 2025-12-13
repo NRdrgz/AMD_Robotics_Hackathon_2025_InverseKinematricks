@@ -242,11 +242,15 @@ class CVAppManager:
         logger.info(f"Starting CV app from {self.app_path}")
 
         try:
+            # Use uv run from cv_classfication project directory
+            cv_project_dir = self.app_path.parent.parent
+
+            # Suppress CV app logs
             self._process = subprocess.Popen(
-                [sys.executable, str(self.app_path)],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                cwd=self.app_path.parent,
+                ["uv", "run", "python", str(self.app_path)],
+                cwd=cv_project_dir,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
             )
             logger.info(f"CV app started with PID {self._process.pid}")
             return True
