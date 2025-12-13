@@ -406,8 +406,14 @@ async def run_conveyor_computer(args: argparse.Namespace) -> None:
         logger.info("Shutdown signal received")
         shutdown_event.set()
 
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, signal_handler)
+    try:
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(sig, signal_handler)
+    except NotImplementedError:
+        # Fallback for platforms that don't support add_signal_handler
+        logger.warning("Signal handlers not supported on this platform, using fallback")
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            signal.signal(sig, lambda s, f: shutdown_event.set())
 
     cv_manager: CVAppManager | None = None
     belt_manager: BeltManager | None = None

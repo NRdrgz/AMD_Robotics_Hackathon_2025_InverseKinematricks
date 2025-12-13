@@ -9,14 +9,14 @@ This script:
 
 Usage:
     python src/main_arms.py \
-        --blue-arm-port=/dev/ttyACM0 \
+        --blue-arm-port=/dev/ttyACM3 \
         --black-arm-port=/dev/ttyACM1 \
-        --blue-top-camera=/dev/video6 \
-        --blue-wrist-camera=/dev/video8 \
+        --blue-top-camera=/dev/video8 \
+        --blue-wrist-camera=/dev/video6 \
         --black-top-camera=/dev/video4 \
+        --black-wrist-camera=/dev/video2 \
         --blue-arm-id=blue_follower \
         --black-arm-id=black_follower \
-        --black-wrist-camera=/dev/video2 \
         --conveyor-host=100.86.200.31 \
         --device=cuda
 """
@@ -257,13 +257,21 @@ async def run_arms_computer(args: argparse.Namespace) -> None:
     """
     shutdown_event = Event()
 
-    # Setup signal handlers
-    def signal_handler(sig, frame):
+    # Setup signal handlers using asyncio-compatible method
+    loop = asyncio.get_running_loop()
+
+    def signal_handler():
         logger.info("Shutdown signal received")
         shutdown_event.set()
 
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    try:
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(sig, signal_handler)
+    except NotImplementedError:
+        # Fallback for platforms that don't support add_signal_handler
+        logger.warning("Signal handlers not supported on this platform, using fallback")
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            signal.signal(sig, lambda s, f: shutdown_event.set())
 
     arm_controller: ArmController | None = None
     ws_client: ArmsWebSocketClient | None = None
@@ -360,7 +368,7 @@ async def run_arms_computer(args: argparse.Namespace) -> None:
         # Main loop - just wait for shutdown
         logger.info("Arms computer running. Press Ctrl+C to stop.")
         while not shutdown_event.is_set():
-            await asyncio.sleep(1.0)
+            await asyncio.sleep(0.1)  # Check shutdown more frequently
 
     except Exception as e:
         logger.error(f"Fatal error: {e}")
