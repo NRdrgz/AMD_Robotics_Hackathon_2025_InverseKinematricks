@@ -1,7 +1,7 @@
 """Sort policy configuration for the black arm.
 
 This policy sorts packages to the correct area based on tape color.
-Based on SmolVLA with RTC enabled.
+Based on SmolVLA with RTC disabled.
 """
 
 from .base import PolicyConfig, PolicyType
@@ -36,9 +36,8 @@ def create_sort_policy_config(
         hf_path=hf_path,
         policy_type=PolicyType.SMOLVLA,
         device=device,
-        rtc_enabled=True,
+        rtc_enabled=False,
         rtc_execution_horizon=30,
         fps=30.0,
         task=task,
     )
-

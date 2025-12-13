@@ -1,7 +1,7 @@
 """Pick policy configuration for the blue arm.
 
 This policy picks packages and places them on the conveyor belt.
-Based on SmolVLA with RTC enabled.
+Based on SmolVLA with RTC disabled.
 """
 
 from .base import PolicyConfig, PolicyType
@@ -32,9 +32,8 @@ def create_pick_policy_config(
         hf_path=hf_path,
         policy_type=PolicyType.SMOLVLA,
         device=device,
-        rtc_enabled=True,
+        rtc_enabled=False,
         rtc_execution_horizon=30,
         fps=30.0,
         task=task,
     )
-
