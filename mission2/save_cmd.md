@@ -197,3 +197,19 @@ lerobot-record \
   --dataset.push_to_hub=false
 ```
 
+### Eval - Black Flip (SMOLVLA)
+
+```bash
+lerobot-record \
+  --robot.type=so101_follower \
+  --robot.port=/dev/ttyACM1 \
+  --robot.id=black_follower \
+  --robot.cameras="{camera1: {type: opencv, index_or_path: /dev/video4, width: 640, height: 480, fps: 30}, camera2: {type: opencv, index_or_path: /dev/video2, width: 640, height: 480, fps: 30}}" \
+  --policy.empty_cameras=1 \
+  --dataset.repo_id=giacomoran/eval_hackathon_amd_mission2_black_flip_smolvla \
+  --dataset.num_episodes=1 \
+  --dataset.single_task="Pick up the package and place it inside the taped square on the table whose color matches the tape on top of the package (red package-tape to red square, yellow package-tape to yellow square). Place the package fully within the square boundaries." \
+  --policy.path=giacomoran/hackathon_amd_mission2_black_flip_smolvla \
+  --dataset.push_to_hub=false
+```
+
