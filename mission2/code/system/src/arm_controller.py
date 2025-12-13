@@ -191,7 +191,7 @@ class ActionExecutor:
                     time.sleep(busy_wait_time)
 
         except Exception as e:
-            logger.error(f"Error in {self.arm_id.value} executor: {e}")
+            logger.exception(f"Error in {self.arm_id.value} executor: {e}")
             raise
 
         logger.info(
@@ -309,7 +309,7 @@ class PolicyRunner:
                         self.executor.put_action(action)
 
                 except Exception as e:
-                    logger.error(f"Error in {self.arm_id.value} inference: {e}")
+                    logger.exception(f"Error in {self.arm_id.value} inference: {e}")
 
                 # Maintain timing using time.sleep
                 dt_s = time.perf_counter() - start_time
@@ -318,7 +318,7 @@ class PolicyRunner:
                     time.sleep(busy_wait_time)
 
         except Exception as e:
-            logger.error(f"Fatal error in {self.arm_id.value} policy runner: {e}")
+            logger.exception(f"Fatal error in {self.arm_id.value} policy runner: {e}")
             raise
 
         logger.info(f"{self.arm_id.value.capitalize()} policy runner stopped")

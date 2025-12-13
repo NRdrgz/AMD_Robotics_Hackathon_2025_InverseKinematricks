@@ -34,15 +34,6 @@ class PolicyType(str, Enum):
     PI05 = "pi05"
 
 
-# Camera name mapping from robot camera names to SmolVLA expected names
-# Robot uses: top, wrist
-# SmolVLA expects: camera1, camera2
-SMOLVLA_CAMERA_MAPPING = {
-    "top": "camera1",
-    "wrist": "camera2",
-}
-
-
 @dataclass
 class PolicyConfig:
     """Configuration for a policy."""
@@ -192,67 +183,6 @@ class PolicyWrapper:
         else:
             return self._get_action_act(observation, observation_features)
 
-    def _remap_camera_names(self, observation: dict) -> dict:
-        """Remap camera names from robot convention to policy convention.
-
-        For SmolVLA policies:
-            - 'top' -> 'camera1'
-            - 'wrist' -> 'camera2'
-
-        ACT policies use the original names without remapping.
-
-        Args:
-            observation: Observation dictionary with robot camera names
-
-        Returns:
-            Observation dictionary with policy-expected camera names
-        """
-        if self.config.policy_type not in (
-            PolicyType.SMOLVLA,
-            PolicyType.PI0,
-            PolicyType.PI05,
-        ):
-            # ACT doesn't need remapping
-            return observation
-
-        remapped = {}
-        for key, value in observation.items():
-            new_key = key
-            for robot_name, policy_name in SMOLVLA_CAMERA_MAPPING.items():
-                if robot_name in key:
-                    new_key = key.replace(robot_name, policy_name)
-                    break
-            remapped[new_key] = value
-
-        return remapped
-
-    def _remap_observation_features(self, features: list[str]) -> list[str]:
-        """Remap observation feature names for the policy.
-
-        Args:
-            features: List of observation feature names
-
-        Returns:
-            List of remapped feature names
-        """
-        if self.config.policy_type not in (
-            PolicyType.SMOLVLA,
-            PolicyType.PI0,
-            PolicyType.PI05,
-        ):
-            return features
-
-        remapped = []
-        for feat in features:
-            new_feat = feat
-            for robot_name, policy_name in SMOLVLA_CAMERA_MAPPING.items():
-                if robot_name in feat:
-                    new_feat = feat.replace(robot_name, policy_name)
-                    break
-            remapped.append(new_feat)
-
-        return remapped
-
     def _prepare_observation(
         self,
         observation: dict[str, Tensor],
@@ -267,10 +197,8 @@ class PolicyWrapper:
         Returns:
             Processed observation ready for policy
         """
-        # Remap camera names for SmolVLA policies
-        observation = self._remap_camera_names(observation)
-        observation_features = self._remap_observation_features(observation_features)
-
+        # Convert observation features to dataset features format
+        # This matches the pattern in eval_with_real_robot.py
         dataset_features = hw_to_dataset_features(observation_features, "observation")
 
         obs_with_policy_features = build_dataset_frame(
