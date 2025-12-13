@@ -209,6 +209,7 @@ class PolicyRunner:
         executor: ActionExecutor,
         shutdown_event: Event,
         fps: float = 30.0,
+        queue_threshold: int = 0,
     ):
         """Initialize the policy runner.
 
@@ -218,12 +219,16 @@ class PolicyRunner:
             executor: Action executor for this arm
             shutdown_event: Event to signal shutdown
             fps: Inference frequency
+            queue_threshold: Only run inference when executor queue size <= this value.
+                             Set to 0 to only infer when queue is empty (recommended
+                             for ACT policies without RTC).
         """
         self.arm_id = arm_id
         self.robot = robot
         self.executor = executor
         self.shutdown_event = shutdown_event
         self.fps = fps
+        self.queue_threshold = queue_threshold
 
         self._current_policy: PolicyWrapper | None = None
         self._policy_lock = Lock()
@@ -302,14 +307,21 @@ class PolicyRunner:
                 if not self._active.wait(timeout=0.1):
                     continue
 
-                start_time = time.perf_counter()
-
                 with self._policy_lock:
                     policy = self._current_policy
 
                 if policy is None:
                     time.sleep(0.1)
                     continue
+
+                # Only run inference when queue is low enough
+                # This matches the pattern in eval_with_real_robot.py
+                if self.executor.queue_size > self.queue_threshold:
+                    # Queue has enough actions, sleep briefly to avoid busy waiting
+                    time.sleep(0.01)
+                    continue
+
+                start_time = time.perf_counter()
 
                 try:
                     # Get observation
@@ -387,8 +399,15 @@ class ArmController:
         )
 
         # Create policy runners
+        # queue_threshold=0 means only run inference when executor queue is empty
+        # This matches eval_with_real_robot.py behavior when RTC is disabled
         self._blue_runner = PolicyRunner(
-            ArmId.BLUE, self._blue_robot, self._blue_executor, self._shutdown_event, fps
+            ArmId.BLUE,
+            self._blue_robot,
+            self._blue_executor,
+            self._shutdown_event,
+            fps,
+            queue_threshold=0,
         )
         self._black_runner = PolicyRunner(
             ArmId.BLACK,
@@ -396,6 +415,7 @@ class ArmController:
             self._black_executor,
             self._shutdown_event,
             fps,
+            queue_threshold=0,
         )
 
     def connect(self) -> None:
