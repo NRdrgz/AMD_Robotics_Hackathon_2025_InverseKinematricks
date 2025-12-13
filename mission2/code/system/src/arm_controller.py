@@ -21,7 +21,6 @@ from lerobot.processor.factory import (
 )
 from lerobot.robots import Robot
 from lerobot.robots.utils import make_robot_from_config
-from lerobot.utils.robot_utils import precise_sleep
 from policies.base import PolicyWrapper
 from torch import Tensor
 
@@ -186,11 +185,11 @@ class ActionExecutor:
                 self.robot.send_action(action_processed)
                 action_count += 1
 
-                # Maintain timing using precise_sleep
+                # Maintain timing using time.sleep
                 dt_s = time.perf_counter() - start_time
                 busy_wait_time = action_interval - dt_s
                 if busy_wait_time > 0:
-                    precise_sleep(busy_wait_time)
+                    time.sleep(busy_wait_time)
 
         except Exception as e:
             logger.error(f"Error in {self.arm_id.value} executor: {e}")
@@ -314,11 +313,11 @@ class PolicyRunner:
                 except Exception as e:
                     logger.error(f"Error in {self.arm_id.value} inference: {e}")
 
-                # Maintain timing using precise_sleep
+                # Maintain timing using time.sleep
                 dt_s = time.perf_counter() - start_time
                 busy_wait_time = inference_interval - dt_s
                 if busy_wait_time > 0:
-                    precise_sleep(busy_wait_time)
+                    time.sleep(busy_wait_time)
 
         except Exception as e:
             logger.error(f"Fatal error in {self.arm_id.value} policy runner: {e}")
