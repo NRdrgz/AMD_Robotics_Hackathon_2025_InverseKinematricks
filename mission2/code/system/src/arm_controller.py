@@ -138,8 +138,11 @@ class ActionExecutor:
             # Put None to unblock the queue
             try:
                 self._action_queue.put(None)
-            except Exception:
-                pass  # Queue might be full or closed
+            except Exception as e:
+                # Don't swallow exceptions; this can hide shutdown issues.
+                logger.debug(
+                    "Failed to unblock action queue during stop(): %s", e, exc_info=True
+                )
 
             # Wait briefly for thread to stop - force exit timer will handle stuck threads
             self._thread.join(timeout=1.0)

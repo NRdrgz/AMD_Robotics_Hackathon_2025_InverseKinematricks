@@ -69,7 +69,21 @@ class ArmsWebSocketClient:
     @property
     def is_connected(self) -> bool:
         """Check if connected to the server."""
-        return self._websocket is not None and self._websocket.open
+        ws = self._websocket
+        if ws is None:
+            return False
+        # Compatibility across websockets versions (the connection object API changed in v15).
+        try:
+            open_attr = getattr(ws, "open", None)
+            if isinstance(open_attr, bool):
+                return open_attr
+            closed_attr = getattr(ws, "closed", None)
+            if isinstance(closed_attr, bool):
+                return not closed_attr
+        except Exception:
+            # Fall through to a conservative best-effort.
+            pass
+        return True
 
     @property
     def uri(self) -> str:

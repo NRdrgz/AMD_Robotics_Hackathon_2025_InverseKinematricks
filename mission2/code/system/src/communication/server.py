@@ -7,18 +7,17 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Callable, Awaitable
+from typing import Any, Awaitable, Callable
 
 import websockets
-from websockets.server import WebSocketServerProtocol
 
 from .messages import (
-    Message,
-    SystemState,
-    SetStateMessage,
     AckMessage,
+    Message,
     PingMessage,
     PongMessage,
+    SetStateMessage,
+    SystemState,
     parse_message,
     serialize_message,
 )
@@ -53,14 +52,16 @@ class ConveyorWebSocketServer:
         self.on_error = on_error
 
         self._server: websockets.WebSocketServer | None = None
-        self._client: WebSocketServerProtocol | None = None
+        # websockets' server connection type changed in v15; keep this untyped for compatibility.
+        self._client: Any | None = None
         self._client_connected = asyncio.Event()
         self._running = False
 
     @property
     def is_connected(self) -> bool:
         """Check if a client (arms computer) is connected."""
-        return self._client is not None and self._client.open
+        # Avoid relying on `.open` / `.closed` attributes (changed across websockets versions).
+        return self._client is not None
 
     async def start(self) -> None:
         """Start the WebSocket server."""
@@ -76,8 +77,13 @@ class ConveyorWebSocketServer:
         """Stop the WebSocket server."""
         self._running = False
         if self._client:
-            await self._client.close()
-            self._client = None
+            try:
+                await self._client.close()
+            except Exception:
+                # Best-effort shutdown; connection may already be gone.
+                pass
+            finally:
+                self._client = None
         if self._server:
             self._server.close()
             await self._server.wait_closed()
@@ -108,7 +114,7 @@ class ConveyorWebSocketServer:
         Returns:
             True if message was sent, False if no client connected
         """
-        if not self.is_connected:
+        if self._client is None:
             logger.warning("Cannot send state: no client connected")
             return False
 
@@ -122,6 +128,11 @@ class ConveyorWebSocketServer:
             self._client = None
             self._client_connected.clear()
             return False
+        except Exception:
+            logger.exception("Unexpected error while sending state")
+            self._client = None
+            self._client_connected.clear()
+            return False
 
     async def ping(self) -> bool:
         """Send a ping to check connection health.
@@ -129,7 +140,7 @@ class ConveyorWebSocketServer:
         Returns:
             True if ping was sent, False if no client connected
         """
-        if not self.is_connected:
+        if self._client is None:
             return False
 
         msg = PingMessage()
@@ -140,8 +151,13 @@ class ConveyorWebSocketServer:
             self._client = None
             self._client_connected.clear()
             return False
+        except Exception:
+            logger.exception("Unexpected error while sending ping")
+            self._client = None
+            self._client_connected.clear()
+            return False
 
-    async def _handle_client(self, websocket: WebSocketServerProtocol) -> None:
+    async def _handle_client(self, websocket: Any) -> None:
         """Handle a client connection."""
         # Only allow one client at a time
         if self._client is not None:
@@ -172,7 +188,9 @@ class ConveyorWebSocketServer:
             return
 
         if isinstance(msg, AckMessage):
-            logger.info(f"Received ACK for state {msg.state.value}: success={msg.success}")
+            logger.info(
+                f"Received ACK for state {msg.state.value}: success={msg.success}"
+            )
             if self.on_ack:
                 await self.on_ack(msg)
 
@@ -188,4 +206,3 @@ class ConveyorWebSocketServer:
                     await self.on_error(msg.message)
             else:
                 logger.warning(f"Unexpected message type from arms: {msg.type}")
-

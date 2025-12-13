@@ -275,8 +275,9 @@ class CVAppManager:
                     if response.status_code == 200:
                         logger.info("CV app is ready")
                         return True
-            except Exception:
-                pass
+            except Exception as e:
+                # Don't swallow startup errors; keep this at DEBUG to avoid log spam.
+                logger.debug(f"CV app not ready yet: {e}")
 
             time.sleep(0.5)
 
@@ -420,6 +421,27 @@ async def run_conveyor_computer(args: argparse.Namespace) -> None:
     ws_server: ConveyorWebSocketServer | None = None
 
     try:
+
+        def _create_task_logged(coro: "asyncio.Future", *, name: str) -> asyncio.Task:
+            """Create a background task and log any exception it raises.
+
+            This avoids 'swallowed' exceptions from fire-and-forget tasks.
+            """
+            task = asyncio.create_task(coro, name=name)
+
+            def _done(t: asyncio.Task) -> None:
+                try:
+                    t.result()
+                except asyncio.CancelledError:
+                    return
+                except Exception:
+                    logger.exception(
+                        "Unhandled exception in background task %s", t.get_name()
+                    )
+
+            task.add_done_callback(_done)
+            return task
+
         # Start CV app
         cv_manager = CVAppManager(
             app_path=args.cv_app_path,
@@ -477,6 +499,11 @@ async def run_conveyor_computer(args: argparse.Namespace) -> None:
         async def on_state_change(state: SystemState) -> None:
             nonlocal current_state
             current_state = state
+            logger.info(
+                "🔔 on_state_change(%s) [ws_connected=%s]",
+                state.value,
+                ws_server.is_connected,
+            )
 
             # Control belt based on state
             if state == SystemState.RUNNING:
@@ -486,10 +513,26 @@ async def run_conveyor_computer(args: argparse.Namespace) -> None:
 
             # Notify arms computer
             if ws_server.is_connected:
-                await ws_server.send_state(state)
+                sent = await ws_server.send_state(state)
+                if not sent:
+                    logger.warning(
+                        "⚠️ Failed to send state %s to arms (ws_connected=%s)",
+                        state.value,
+                        ws_server.is_connected,
+                    )
+            else:
+                logger.warning(
+                    "⚠️ Skipping send_state(%s): no arms client connected",
+                    state.value,
+                )
+
+        def _schedule_state_change(state: SystemState) -> None:
+            _create_task_logged(
+                on_state_change(state), name=f"on_state_change({state.value})"
+            )
 
         state_machine = PackageSortingStateMachine(
-            on_state_change=lambda s: asyncio.create_task(on_state_change(s)),
+            on_state_change=_schedule_state_change,
             sorting_to_running_delay=args.transition_delay,
         )
 
