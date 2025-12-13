@@ -570,11 +570,11 @@ async def run_conveyor_computer(args: argparse.Namespace) -> None:
                         running_detection_time = time.time()
                         last_package_detected_in_running = True
                         logger.info(
-                            f"Package detected in RUNNING state, waiting 2.0s before transitioning"
+                            f"Package detected in RUNNING state, waiting 5.0s before transitioning"
                         )
                         # Don't process status yet, stay in RUNNING
                     elif running_detection_time is not None:
-                        if time.time() - running_detection_time >= 2.0:
+                        if time.time() - running_detection_time >= 5.0:
                             # Delay complete, allow transition
                             state_machine.process_cv_status(cv_status)
                             running_detection_time = None
