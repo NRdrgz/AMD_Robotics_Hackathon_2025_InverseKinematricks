@@ -77,6 +77,25 @@ lerobot-record \
   --resume=true
 ```
 
+### Record Dataset - Blue Pick (AMD Laptop)
+
+```bash
+lerobot-record \
+  --robot.type=so101_follower \
+  --robot.port=/dev/ttyACM3 \
+  --robot.id=blue_follower \
+  --robot.cameras="{top: {type: opencv, index_or_path: /dev/video8, width: 640, height: 480, fps: 30}, wrist: {type: opencv, index_or_path: /dev/video6, width: 640, height: 480, fps: 30}}" \
+  --teleop.type=so101_leader \
+  --teleop.port=/dev/ttyACM2 \
+  --teleop.id=blue_leader \
+  --dataset.repo_id="giacomoran/hackathon_amd_mission2_blue_pick" \
+  --dataset.num_episodes=5 \
+  --dataset.episode_time_s=20 \
+  --dataset.reset_time_s=10 \
+  --dataset.single_task="Pick up the package and place it on the black conveyor belt." \
+  --resume=true
+```
+
 ### Eval - Blue Pick ACT (MacBook Nico)
 
 ```bash
