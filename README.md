@@ -1,45 +1,125 @@
-# AMD_Robotics_Hackathon_2025_[Project Name]
+# AMD_Robotics_Hackathon_2025_Flip&Ship
 
 ## Team Information
 
 **Team:**
 
-Team Number: 6  
-Team Name: Inverse Kinema-tricks  
-Members: Xiao Feng, Giacomo Randazzo, Nicolas Rodriguez
+**Team Number:** 6  
+**Team Name:** *Inverse Kinema-tricks*  
+**Team Members:**
+- Xiao Feng
+- Giacomo Randazzo
+- Nicolas Rodriguez
 
-**Summary:** *A brief description of your work*
+**Summary:**
 
-*< Images or video demonstrating your project >*
+We got inspired by recent advances in humanoid robotics, especially that cool Figure robot demo at an Amazon fulfillment center where it was flipping packages to expose barcodes for scanning:
+
+![Figure robot sorting packages](/assets/figure_sorting_packages.gif)
+
+We thought: "Hey, we can do something similar!" So we built our version using more affordable hardware and open-source VLA models, plus a healthy dose of creative engineering! 
+
+## Introducing Our Project: **Flip & Ship!**
+
+### System Overview
+
+We designed and built a compact sorting station inspired by modern fulfillment centers:
+
+**Project schematic:**  
+![Project schematic](assets/setup_excalidraw.png)
+
+**Real-world setup:**  
+*(Image/video to be added soon)*
+
+### Hardware
+
+- **Robotic Arms:** 2x SO101 units
+- **Cameras:** 3 provided by the hackathon organizers
+- **Conveyor Belt:**
+  - Custom-built using a stepper motor salvaged from a used 3D printer
+  - Belt crafted with tape in a perfectly hacky mindset
+
+---
 
 ## Submission Details
 
 ### 1. Mission Description
-- *Real world application of your mission*
+
+Our system can be used in a package delivery center to make sure barcodes are facing the right way (just like that Figure robot demo!). Plus, we can sort packages to send them in the right direction too.
 
 ### 2. Creativity
-- *What is novel or unique in your approach?*
-- *Innovation in design, methodology, or application*
 
-### 3. Technical implementations
-- *Teleoperation / Dataset capture*
-    - *<Image/video of teleoperation or dataset capture>*
-- *Training*
-- *Inference*
-    - *<Image/video of inference eval>*
 
-### 4. Ease of use
+- We're using basic skills that have been shown in hackathons before (pick and place, sorting), but we're combining them in a way that actually solves a real-world problem!
+- The "flipping packages" skill has never been demonstrated before up to our knowledge.
+- And let's be honest, our DIY conveyor belt made from a salvaged 3D printer motor and tape? That's peak hackathon creativity right there!
+
+### 3. Technical Implementations
+
+We've got 3 policies total:
+- 1 policy for Arm 1 to pick up packages and drop them on the conveyor belt
+- 2 policies for Arm 2: one for sorting packages into the right color box, and one for flipping packages
+
+The computer vision system is responsible for calling the right policy for Arm 2. If it can see the color, it asks Arm 2 to sort the package. If it cannot, it asks Arm 2 to flip the package.
+
+We do believe that both flipping and sorting can eventually be done by a single policy, but we wanted to segment into smaller simpler policies given our time constraint.
+
+The computer vision also controls the conveyor belt. It's always running and only stops when it detects a package at the end.
+
+#### Teleoperation / Dataset Capture
+
+We captured 100 episodes for each policy.
+
+Our dataset can be found here:
+- *(Link to be added)*
+- *(Link to be added)*
+- *(Link to be added)*
+
+*(Video to be added)*
+
+#### Training
+
+We first trained ACT models for each policy. Quite fast on the MI300X GPU (only 30 min for 5000 steps)!
+
+*(Photos of loss curves to be added)*
+
+Then we trained SmolVLA (XXX min for 10,000 steps).
+
+*(More loss curve photos to be added)*
+
+Here are our 3 final trained models:
+- *(Link to be added)*
+- *(Link to be added)*
+- *(Link to be added)*
+
+#### Inference
+
+All policies are running on the AMD laptop using Radeon 890M GPU.
+
+Here is a fantastic video of our system sorting the package in the case it first needs to flip it:
+
+*(Video to be added)*
+
+*(Discussion around latency and memory usage to be added)*
+
+### 4. Ease of Use
+
 - *How generalizable is your implementation across tasks or environments?*
 - *Flexibility and adaptability of the solution*
 - *Types of commands or interfaces needed to control the robot*
 
 ## Additional Links
 
-- Mission 1:
-    - [README](https://github.com/NRdrgz/AMD_Robotics_Hackathon_2025_InverseKinematricks/blob/main/mission1/README.md)
-    - [video](https://github.com/NRdrgz/AMD_Robotics_Hackathon_2025_InverseKinematricks/raw/refs/heads/main/mission1/videos/trained_policy_mission_1.mp4)
-    - [dataset on HF](https://huggingface.co/datasets/giacomoran/hackathon_amd_mission1)
-    - [model on HF](https://huggingface.co/giacomoran/hackathon_amd_mission1)
+### Mission 1
+
+- [README](https://github.com/NRdrgz/AMD_Robotics_Hackathon_2025_InverseKinematricks/blob/main/mission1/README.md)
+- [Video](https://github.com/NRdrgz/AMD_Robotics_Hackathon_2025_InverseKinematricks/raw/refs/heads/main/mission1/videos/trained_policy_mission_1.mp4)
+- [Dataset on HF](https://huggingface.co/datasets/giacomoran/hackathon_amd_mission1)
+- [Model on HF](https://huggingface.co/giacomoran/hackathon_amd_mission1)
+
+### Mission 2
+
+*(TODO)*
 
 *For example, you can provide links to:*
 
