@@ -127,6 +127,24 @@ lerobot-record \
   --dataset.push_to_hub=false
 ```
 
+### Eval - Blue Pick ACT v2
+
+```bash
+rm -rf /home/nico/.cache/huggingface/lerobot/giacomoran/eval_blue_pick_act_v2
+lerobot-record \
+  --robot.type=so101_follower \
+  --robot.port=/dev/ttyACM3 \
+  --dataset.episode_time_s=1200 \
+  --robot.cameras="{top: {type: opencv, index_or_path: /dev/video8, width: 640, height: 480, fps: 30}, wrist: {type: opencv, index_or_path: /dev/video6, width: 640, height: 480, fps: 30}}" \
+  --robot.id=blue_follower \
+  --display_data=false \
+  --dataset.repo_id=giacomoran/eval_blue_pick_act_v2 \
+  --dataset.single_task="Pick up the package and place it on the black conveyor belt." \
+  --policy.path=giacomoran/hackathon_amd_mission2_blue_pick_act_v2 \
+  --dataset.push_to_hub=false
+```
+
+
 ### Eval - Blue Pick SMOLVLA (MacBook Nico)
 
 ```bash
