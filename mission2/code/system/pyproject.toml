@@ -3,10 +3,14 @@ name = "system"
 version = "0.1.0"
 description = "Package sorting system with two SO101 arms"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.10"
 dependencies = [
     "lerobot[smolvla]==0.4.1",
     "websockets>=12.0",
     "httpx>=0.27.0",
     "pyserial>=3.5",
 ]
+
+# For AMD ROCm GPU support (arms laptop), install PyTorch first:
+# pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/rocm6.3
+# Then install this package: pip install -e .

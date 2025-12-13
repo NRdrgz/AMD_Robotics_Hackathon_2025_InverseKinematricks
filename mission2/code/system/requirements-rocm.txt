@@ -1,0 +1,24 @@
+# Requirements for AMD ROCm GPU (arms laptop)
+# Python 3.10 required
+#
+# Install PyTorch with ROCm 6.3 FIRST:
+#   pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/rocm6.3
+#
+# Then install these dependencies:
+#   pip install -r requirements-rocm.txt
+#
+# Verify ROCm installation:
+#   pip list | grep -E "torch|rocm"
+#   Expected output:
+#     pytorch-triton-rocm    3.3.1
+#     torch                  2.7.1+rocm6.3
+#     torchaudio             2.7.1+rocm6.3
+#     torchvision            0.22.1+rocm6.3
+
+# LeRobot with SmolVLA support
+lerobot[smolvla]==0.4.1
+
+# Communication
+websockets>=12.0
+httpx>=0.27.0
+pyserial>=3.5
