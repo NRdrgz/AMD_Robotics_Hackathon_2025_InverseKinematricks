@@ -26,9 +26,11 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import os
 import signal
 import sys
-from threading import Event
+import time as time_module
+from threading import Event, Thread
 
 # Configure logging BEFORE any lerobot imports to avoid lerobot's logger config interfering
 # Use force=True to prevent lerobot from overriding our logging configuration
@@ -63,6 +65,45 @@ if not root_logger.handlers:
     root_logger.addHandler(handler)
 
 logger = logging.getLogger(__name__)
+
+# Global for forced shutdown
+_force_exit_timer: Thread | None = None
+_shutdown_initiated = False
+
+
+def _force_exit_after_timeout(timeout: float = 5.0) -> None:
+    """Force exit the process after a timeout.
+
+    This is a safety mechanism to ensure the process exits even if
+    threads are stuck in blocking operations (like camera reads or
+    neural network inference).
+    """
+    time_module.sleep(timeout)
+    logger.error(
+        f"Force exiting after {timeout}s timeout - threads did not stop gracefully"
+    )
+    # Use os._exit to forcefully terminate without cleanup
+    # This is necessary when threads are stuck in blocking operations
+    os._exit(1)
+
+
+def start_force_exit_timer(timeout: float = 5.0) -> None:
+    """Start a timer that will force exit if the program doesn't exit gracefully."""
+    global _force_exit_timer
+    if _force_exit_timer is None:
+        _force_exit_timer = Thread(
+            target=_force_exit_after_timeout, args=(timeout,), daemon=True
+        )
+        _force_exit_timer.start()
+        logger.info(f"Started force exit timer ({timeout}s)")
+
+
+def cancel_force_exit_timer() -> None:
+    """Cancel the force exit timer (called when shutdown completes normally)."""
+    global _force_exit_timer
+    # We can't actually cancel a sleeping thread, but since it's a daemon thread,
+    # it will be killed when the main thread exits. This function is just for clarity.
+    _force_exit_timer = None
 
 
 def parse_args() -> argparse.Namespace:
@@ -286,14 +327,21 @@ async def run_arms_computer(args: argparse.Namespace) -> None:
     Args:
         args: Parsed command line arguments
     """
+    global _shutdown_initiated
     shutdown_event = Event()
 
     # Setup signal handlers using asyncio-compatible method
     loop = asyncio.get_running_loop()
 
     def signal_handler():
+        global _shutdown_initiated
         logger.info("Shutdown signal received")
         shutdown_event.set()
+        # Start force exit timer on first signal
+        if not _shutdown_initiated:
+            _shutdown_initiated = True
+            # Give 5 seconds for graceful shutdown, then force exit
+            start_force_exit_timer(timeout=5.0)
 
     try:
         for sig in (signal.SIGINT, signal.SIGTERM):
@@ -301,8 +349,16 @@ async def run_arms_computer(args: argparse.Namespace) -> None:
     except NotImplementedError:
         # Fallback for platforms that don't support add_signal_handler
         logger.warning("Signal handlers not supported on this platform, using fallback")
+
+        def fallback_handler(s, f):
+            global _shutdown_initiated
+            shutdown_event.set()
+            if not _shutdown_initiated:
+                _shutdown_initiated = True
+                start_force_exit_timer(timeout=5.0)
+
         for sig in (signal.SIGINT, signal.SIGTERM):
-            signal.signal(sig, lambda s, f: shutdown_event.set())
+            signal.signal(sig, fallback_handler)
 
     arm_controller: ArmController | None = None
     ws_client: ArmsWebSocketClient | None = None
@@ -424,31 +480,27 @@ async def run_arms_computer(args: argparse.Namespace) -> None:
         raise
 
     finally:
-        # Cleanup
-        logger.info("Shutting down...")
+        # Cleanup - be quick, we have a force exit timer running
+        logger.info("Shutting down (force exit in 5s if stuck)...")
 
         # Stop arm controller first (stops all threads)
         if arm_controller:
             try:
+                # Don't wait too long - force exit timer will handle stuck threads
                 arm_controller.stop()
-                logger.info("Waiting for threads to stop...")
-                # Give threads time to stop
-                import time as time_module
-
-                time_module.sleep(1.0)
             except Exception as e:
                 logger.error(f"Error stopping arm controller: {e}")
 
-        # Stop WebSocket client
+        # Stop WebSocket client - short timeout
         if ws_client:
             try:
-                await asyncio.wait_for(ws_client.stop(), timeout=5.0)
+                await asyncio.wait_for(ws_client.stop(), timeout=1.0)
             except asyncio.TimeoutError:
                 logger.warning("WebSocket client stop timed out")
             except Exception as e:
                 logger.error(f"Error stopping WebSocket client: {e}")
 
-        # Disconnect robots last
+        # Disconnect robots
         if arm_controller:
             try:
                 arm_controller.disconnect()
@@ -456,6 +508,8 @@ async def run_arms_computer(args: argparse.Namespace) -> None:
                 logger.error(f"Error disconnecting robots: {e}")
 
         logger.info("Arms computer shutdown complete")
+        # If we get here, we exited gracefully before the force exit timer
+        cancel_force_exit_timer()
 
 
 def main() -> None:

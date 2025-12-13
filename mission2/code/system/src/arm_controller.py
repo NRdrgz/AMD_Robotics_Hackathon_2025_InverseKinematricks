@@ -136,14 +136,11 @@ class ActionExecutor:
             except Exception:
                 pass  # Queue might be full or closed
 
-            # Wait longer for thread to stop, checking periodically
-            for _ in range(20):  # 20 * 0.5s = 10 seconds total
-                if not self._thread.is_alive():
-                    break
-                time.sleep(0.5)
+            # Wait briefly for thread to stop - force exit timer will handle stuck threads
+            self._thread.join(timeout=1.0)
             if self._thread.is_alive():
                 logger.warning(
-                    f"{self.arm_id.value.capitalize()} executor thread did not stop gracefully"
+                    f"{self.arm_id.value.capitalize()} executor thread did not stop in 1s"
                 )
             self._thread = None
 
@@ -289,14 +286,11 @@ class PolicyRunner:
         """Stop the policy runner thread."""
         self._active.clear()
         if self._thread and self._thread.is_alive():
-            # Wait longer for thread to stop, checking periodically
-            for _ in range(20):  # 20 * 0.5s = 10 seconds total
-                if not self._thread.is_alive():
-                    break
-                time.sleep(0.5)
+            # Wait briefly for thread to stop - force exit timer will handle stuck threads
+            self._thread.join(timeout=1.0)
             if self._thread.is_alive():
                 logger.warning(
-                    f"{self.arm_id.value.capitalize()} policy runner thread did not stop gracefully"
+                    f"{self.arm_id.value.capitalize()} policy runner thread did not stop in 1s"
                 )
             self._thread = None
 
