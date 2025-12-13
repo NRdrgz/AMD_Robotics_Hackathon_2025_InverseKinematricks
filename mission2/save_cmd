@@ -14,3 +14,19 @@ lerobot-record \
     --dataset.single_task="Pick up the package and place it inside the taped square on the table whose color matches the tape on top of the package (red package-tape to red square, yellow package-tape to yellow square). Place the package fully within the square boundaries." \
     --dataset.root="/home/nico/hackathon_amd_mission2_black_sort_dataset/" \
     --resume=true
+
+# record dataset mission 2 - blue pick - macbook nico
+lerobot-record \
+    --robot.type=so101_follower \
+    --robot.port=/dev/tty.usbmodem5A680116011 \
+    --robot.id=blue_follower \
+    --robot.cameras="{top: {type: opencv, index_or_path: 1, width: 640, height: 480, fps: 30}, wrist: {type: opencv, index_or_path: 0, width: 640, height: 480, fps: 30}}" \
+    --teleop.type=so101_leader \
+    --teleop.port=/dev/tty.usbmodem5A460824651 \
+    --teleop.id=blue_leader \
+    --dataset.repo_id="giacomoran/hackathon_amd_mission2_blue_pick" \
+    --dataset.num_episodes=5 \
+    --dataset.episode_time_s=20 \
+    --dataset.reset_time_s=10 \
+    --dataset.single_task="Pick up the package and place it on the black conveyor belt." \
+    --resume=true
