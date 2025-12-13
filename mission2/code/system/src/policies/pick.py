@@ -1,13 +1,13 @@
 """Pick policy configuration for the blue arm.
 
 This policy picks packages and places them on the conveyor belt.
-Based on SmolVLA with RTC disabled.
+Based on ACT.
 """
 
 from .base import PolicyConfig, PolicyType
 
 # Default HuggingFace path for the pick policy
-DEFAULT_PICK_POLICY_PATH = "giacomoran/hackathon_amd_mission2_blue_pick_smolvla"
+DEFAULT_PICK_POLICY_PATH = "giacomoran/hackathon_amd_mission2_blue_pick"
 
 # Default task prompt
 DEFAULT_PICK_TASK = "Pick up the package and place it on the black conveyor belt."
@@ -30,7 +30,7 @@ def create_pick_policy_config(
     """
     return PolicyConfig(
         hf_path=hf_path,
-        policy_type=PolicyType.SMOLVLA,
+        policy_type=PolicyType.ACT,
         device=device,
         rtc_enabled=False,
         rtc_execution_horizon=30,

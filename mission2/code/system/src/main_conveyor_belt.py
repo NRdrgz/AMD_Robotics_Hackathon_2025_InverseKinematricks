@@ -505,6 +505,10 @@ async def run_conveyor_computer(args: argparse.Namespace) -> None:
         # Track for SORTING->RUNNING delay
         sorting_exit_time: float | None = None
 
+        # Track for RUNNING->FLIPPING/SORTING delay (when package first detected)
+        running_detection_time: float | None = None
+        last_package_detected_in_running: bool = False
+
         # Main control loop
         while not shutdown_event.is_set():
             # Poll CV API
@@ -513,8 +517,39 @@ async def run_conveyor_computer(args: argparse.Namespace) -> None:
             if cv_status is not None:
                 old_state = state_machine.state
 
+                # Handle RUNNING->FLIPPING/SORTING delay (when package first detected)
+                if old_state == SystemState.RUNNING and cv_status.package_detected:
+                    if not last_package_detected_in_running:
+                        # Package just detected for the first time in RUNNING state
+                        running_detection_time = time.time()
+                        last_package_detected_in_running = True
+                        logger.info(
+                            f"Package detected in RUNNING state, waiting 2.0s before transitioning"
+                        )
+                        # Don't process status yet, stay in RUNNING
+                    elif running_detection_time is not None:
+                        if time.time() - running_detection_time >= 2.0:
+                            # Delay complete, allow transition
+                            state_machine.process_cv_status(cv_status)
+                            running_detection_time = None
+                            # Keep last_package_detected_in_running True since package still detected
+                        else:
+                            # Still waiting, don't process status yet (stay in RUNNING)
+                            pass
+                    else:
+                        # Already processed transition, continue normally
+                        state_machine.process_cv_status(cv_status)
+                elif (
+                    old_state == SystemState.RUNNING and not cv_status.package_detected
+                ):
+                    # Package disappeared or not detected, reset tracking
+                    running_detection_time = None
+                    last_package_detected_in_running = False
+                    state_machine.process_cv_status(cv_status)
                 # Handle SORTING->RUNNING delay
-                if old_state == SystemState.SORTING and not cv_status.package_detected:
+                elif (
+                    old_state == SystemState.SORTING and not cv_status.package_detected
+                ):
                     if sorting_exit_time is None:
                         sorting_exit_time = time.time()
                         logger.info(
@@ -526,6 +561,9 @@ async def run_conveyor_computer(args: argparse.Namespace) -> None:
                         sorting_exit_time = None
                 else:
                     sorting_exit_time = None
+                    # Reset RUNNING detection tracking when not in RUNNING state
+                    running_detection_time = None
+                    last_package_detected_in_running = False
                     state_machine.process_cv_status(cv_status)
 
             await asyncio.sleep(args.poll_interval)

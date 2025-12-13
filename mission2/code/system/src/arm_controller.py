@@ -254,17 +254,34 @@ class PolicyRunner:
             policy: Policy to run, or None to idle
         """
         with self._policy_lock:
+            old_policy_name = (
+                self._current_policy.config.hf_path
+                if self._current_policy
+                else "None (idle)"
+            )
+
             if self._current_policy != policy:
                 # Clear pending actions when switching policies
+                queue_size = self.executor.queue_size
+                if queue_size > 0:
+                    logger.info(
+                        f"  🧹 {self.arm_id.value.capitalize()} arm: Clearing {queue_size} pending actions"
+                    )
                 self.executor.clear_queue()
+
                 self._current_policy = policy
                 if policy:
                     policy.reset()
+                    new_policy_name = policy.config.hf_path
                     logger.info(
-                        f"{self.arm_id.value} arm: policy set to {policy.config.hf_path}"
+                        f"  🤖 POLICY CHANGE [{self.arm_id.value.upper()} ARM]: "
+                        f"{old_policy_name} → {new_policy_name}"
                     )
                 else:
-                    logger.info(f"{self.arm_id.value} arm: policy cleared (idle)")
+                    logger.info(
+                        f"  🤖 POLICY CHANGE [{self.arm_id.value.upper()} ARM]: "
+                        f"{old_policy_name} → None (idle)"
+                    )
 
     def activate(self) -> None:
         """Activate the policy runner to start producing actions."""
@@ -409,6 +426,7 @@ class ArmController:
         self._black_runner.start()
 
         # Apply initial state
+        logger.info(f"Applying initial state: {self._current_state.value}")
         self._apply_state(self._current_state)
 
         logger.info("Arm controller started")
@@ -441,7 +459,7 @@ class ArmController:
             old_state = self._current_state
             self._current_state = state
 
-        logger.info(f"State change: {old_state.value} -> {state.value}")
+        logger.info(f"🔄 STATE CHANGE: {old_state.value} -> {state.value}")
         self._apply_state(state)
         return True
 
@@ -458,32 +476,42 @@ class ArmController:
         - FLIPPING: blue=idle, black=flip (active)
         - SORTING: blue=idle, black=sort (active)
         """
+        logger.info(f"📋 Applying state configuration for {state.value}...")
+
         if state == SystemState.RUNNING:
             # Blue arm runs pick policy
+            logger.info("  → Blue arm: Setting PICK policy and activating")
             self._blue_runner.set_policy(self.pick_policy)
             self._blue_runner.activate()
 
             # Black arm is idle
+            logger.info("  → Black arm: Clearing policy and deactivating")
             self._black_runner.deactivate()
             self._black_runner.set_policy(None)
 
         elif state == SystemState.FLIPPING:
             # Blue arm is idle
+            logger.info("  → Blue arm: Clearing policy and deactivating")
             self._blue_runner.deactivate()
             self._blue_runner.set_policy(None)
 
             # Black arm runs flip policy
+            logger.info("  → Black arm: Setting FLIP policy and activating")
             self._black_runner.set_policy(self.flip_policy)
             self._black_runner.activate()
 
         elif state == SystemState.SORTING:
             # Blue arm is idle
+            logger.info("  → Blue arm: Clearing policy and deactivating")
             self._blue_runner.deactivate()
             self._blue_runner.set_policy(None)
 
             # Black arm runs sort policy
+            logger.info("  → Black arm: Setting SORT policy and activating")
             self._black_runner.set_policy(self.sort_policy)
             self._black_runner.activate()
 
         else:
-            logger.warning(f"Unknown state: {state}")
+            logger.warning(f"⚠️  Unknown state: {state}")
+
+        logger.info(f"✅ State configuration for {state.value} applied successfully")

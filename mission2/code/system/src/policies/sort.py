@@ -1,13 +1,13 @@
 """Sort policy configuration for the black arm.
 
 This policy sorts packages to the correct area based on tape color.
-Based on SmolVLA with RTC disabled.
+Based on ACT.
 """
 
 from .base import PolicyConfig, PolicyType
 
 # Default HuggingFace path for the sort policy
-DEFAULT_SORT_POLICY_PATH = "giacomoran/hackathon_amd_mission2_black_sort_smolvla"
+DEFAULT_SORT_POLICY_PATH = "giacomoran/hackathon_amd_mission2_black_sort"
 
 # Default task prompt
 DEFAULT_SORT_TASK = (
@@ -34,7 +34,7 @@ def create_sort_policy_config(
     """
     return PolicyConfig(
         hf_path=hf_path,
-        policy_type=PolicyType.SMOLVLA,
+        policy_type=PolicyType.ACT,
         device=device,
         rtc_enabled=False,
         rtc_execution_horizon=30,

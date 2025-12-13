@@ -132,7 +132,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--pick-policy-path",
         type=str,
-        default="giacomoran/hackathon_amd_mission2_blue_pick_smolvla",
+        default="giacomoran/hackathon_amd_mission2_blue_pick",
         help="HuggingFace path for pick policy",
     )
     parser.add_argument(
@@ -144,7 +144,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--sort-policy-path",
         type=str,
-        default="giacomoran/hackathon_amd_mission2_black_sort_smolvla",
+        default="giacomoran/hackathon_amd_mission2_black_sort",
         help="HuggingFace path for sort policy",
     )
     parser.add_argument(
@@ -204,8 +204,7 @@ def create_robot_config(
 
     Note:
         Camera names 'top' and 'wrist' are used by the robot.
-        SmolVLA policies expect 'camera1' (top) and 'camera2' (wrist).
-        ACT policies use the original names.
+        ACT policies use the original camera names.
     """
     cameras = {
         "top": OpenCVCameraConfig(
@@ -242,10 +241,19 @@ async def handle_state_change(
     Returns:
         True if state change was successful
     """
+    current_state = arm_controller.get_state()
+    logger.info(
+        f"Received state change request: {current_state.value} -> {state.value}"
+    )
     try:
-        return arm_controller.set_state(state)
+        result = arm_controller.set_state(state)
+        if result:
+            logger.info(f"Successfully changed state to {state.value}")
+        else:
+            logger.warning(f"State change to {state.value} returned False")
+        return result
     except Exception as e:
-        logger.error(f"Failed to change state to {state.value}: {e}")
+        logger.error(f"Failed to change state to {state.value}: {e}", exc_info=True)
         return False
 
 
@@ -278,30 +286,40 @@ async def run_arms_computer(args: argparse.Namespace) -> None:
 
     try:
         # Load policies
+        logger.info("=" * 50)
         logger.info("Loading policies...")
+        logger.info("=" * 50)
 
+        logger.info(f"Loading PICK policy from: {args.pick_policy_path}")
         pick_config = create_pick_policy_config(
             hf_path=args.pick_policy_path,
             device=args.device,
         )
         pick_policy = PolicyWrapper(pick_config)
         pick_policy.load()
+        logger.info(f"✅ PICK policy loaded successfully (device: {args.device})")
 
+        logger.info(f"Loading FLIP policy from: {args.flip_policy_path}")
         flip_config = create_flip_policy_config(
             hf_path=args.flip_policy_path,
             device=args.device,
         )
         flip_policy = PolicyWrapper(flip_config)
         flip_policy.load()
+        logger.info(f"✅ FLIP policy loaded successfully (device: {args.device})")
 
+        logger.info(f"Loading SORT policy from: {args.sort_policy_path}")
         sort_config = create_sort_policy_config(
             hf_path=args.sort_policy_path,
             device=args.device,
         )
         sort_policy = PolicyWrapper(sort_config)
         sort_policy.load()
+        logger.info(f"✅ SORT policy loaded successfully (device: {args.device})")
 
+        logger.info("=" * 50)
         logger.info("All policies loaded successfully")
+        logger.info("=" * 50)
 
         # Create robot configurations
         logger.info("Creating robot configurations...")
@@ -345,6 +363,9 @@ async def run_arms_computer(args: argparse.Namespace) -> None:
 
         # Create WebSocket client
         async def on_state_change(state: SystemState) -> bool:
+            logger.info(
+                f"📡 WebSocket received state change notification: {state.value}"
+            )
             return await handle_state_change(state, arm_controller)
 
         ws_client = ArmsWebSocketClient(
@@ -355,7 +376,7 @@ async def run_arms_computer(args: argparse.Namespace) -> None:
 
         # Start WebSocket client
         await ws_client.start()
-        logger.info(f"Connecting to conveyor computer at {ws_client.uri}...")
+        logger.info(f"🔌 Connecting to conveyor computer at {ws_client.uri}...")
 
         # Wait for connection
         if await ws_client.wait_for_connection(timeout=30.0):
