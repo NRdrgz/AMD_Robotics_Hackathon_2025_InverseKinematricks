@@ -1,0 +1,15 @@
+# record dataset mission 2 - black
+lerobot-record \
+    --robot.type=so101_follower \
+    --robot.port=/dev/ttyACM1 \
+    --robot.id=black_follower \
+    --robot.cameras="{top: {type: opencv, index_or_path: /dev/video2, width: 640, height: 480, fps: 30}, wrist: {type: opencv, index_or_path: /dev/video4, width: 640, height: 480, fps: 30}}" \
+    --teleop.type=so101_leader \
+    --teleop.port=/dev/ttyACM0 \
+    --teleop.id=black_leader \
+    --dataset.repo_id="giacomoran/hackathon_amd_mission2_black" \
+    --dataset.num_episodes=5 \
+    --dataset.episode_time_s=20 \
+    --dataset.reset_time_s=10 \
+    --dataset.single_task="Pick up the package and place it inside the taped square on the table whose color matches the tape on top of the package (red package-tape → red square, yellow package-tape → yellow square). Place the package fully within the square boundaries." \
+    --dataset.root="/home/nico/hackathon_amd_mission2_black_dataset/"
