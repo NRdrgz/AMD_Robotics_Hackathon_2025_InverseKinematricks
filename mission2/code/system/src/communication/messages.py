@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Union
 
@@ -21,6 +21,7 @@ class MessageType(str, Enum):
 class SystemState(str, Enum):
     """System states for the package sorting operation."""
 
+    STOPPED = "STOPPED"  # Disconnected from server, no policy inference or actions
     RUNNING = "RUNNING"  # Belt on, blue pick running, black idle
     FLIPPING = "FLIPPING"  # Belt off, black flip running
     SORTING = "SORTING"  # Belt off, black sort running
@@ -52,7 +53,11 @@ class AckMessage:
         return MessageType.ACK
 
     def to_dict(self) -> dict:
-        return {"type": self.type.value, "state": self.state.value, "success": self.success}
+        return {
+            "type": self.type.value,
+            "state": self.state.value,
+            "success": self.success,
+        }
 
 
 @dataclass
@@ -171,4 +176,3 @@ def serialize_message(msg: Message) -> str:
         JSON string representation of the message
     """
     return json.dumps(msg.to_dict())
-

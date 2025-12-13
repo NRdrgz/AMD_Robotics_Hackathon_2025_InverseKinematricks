@@ -8,19 +8,19 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Callable, Awaitable
+from typing import Awaitable, Callable
 
 import websockets
 from websockets.client import WebSocketClientProtocol
 
 from .messages import (
-    Message,
-    SystemState,
-    SetStateMessage,
     AckMessage,
     ErrorMessage,
+    Message,
     PingMessage,
     PongMessage,
+    SetStateMessage,
+    SystemState,
     parse_message,
     serialize_message,
 )
@@ -39,6 +39,8 @@ class ArmsWebSocketClient:
         host: str,
         port: int = 8765,
         on_state_change: Callable[[SystemState], Awaitable[bool]] | None = None,
+        on_connected: Callable[[], Awaitable[None]] | None = None,
+        on_disconnected: Callable[[], Awaitable[None]] | None = None,
         reconnect_interval: float = 2.0,
     ):
         """Initialize the WebSocket client.
@@ -48,11 +50,15 @@ class ArmsWebSocketClient:
             port: Port to connect to
             on_state_change: Callback when state change is received.
                              Should return True if state change was successful.
+            on_connected: Callback when connection is established
+            on_disconnected: Callback when connection is lost
             reconnect_interval: Seconds to wait before reconnecting after disconnect
         """
         self.host = host
         self.port = port
         self.on_state_change = on_state_change
+        self.on_connected = on_connected
+        self.on_disconnected = on_disconnected
         self.reconnect_interval = reconnect_interval
 
         self._websocket: WebSocketClientProtocol | None = None
@@ -174,6 +180,13 @@ class ArmsWebSocketClient:
                 self._connected.set()
                 logger.info(f"Connected to conveyor computer at {self.uri}")
 
+                # Notify connection established
+                if self.on_connected:
+                    try:
+                        await self.on_connected()
+                    except Exception as e:
+                        logger.error(f"Error in on_connected callback: {e}")
+
                 try:
                     async for raw_message in websocket:
                         await self._handle_message(raw_message)
@@ -182,6 +195,13 @@ class ArmsWebSocketClient:
         finally:
             self._websocket = None
             self._connected.clear()
+
+            # Notify connection lost
+            if self.on_disconnected:
+                try:
+                    await self.on_disconnected()
+                except Exception as e:
+                    logger.error(f"Error in on_disconnected callback: {e}")
 
     async def _handle_message(self, raw_message: str | bytes) -> None:
         """Handle an incoming message from the conveyor computer."""
@@ -215,4 +235,3 @@ class ArmsWebSocketClient:
 
         else:
             logger.warning(f"Unexpected message type: {type(msg)}")
-

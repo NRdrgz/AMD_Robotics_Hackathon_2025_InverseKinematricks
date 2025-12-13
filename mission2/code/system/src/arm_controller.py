@@ -24,6 +24,8 @@ from policies.base import PolicyWrapper
 from torch import Tensor
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from lerobot.robots import RobotConfig
 
 logger = logging.getLogger(__name__)
@@ -99,6 +101,7 @@ class ActionExecutor:
         robot: RobotWrapper,
         shutdown_event: Event,
         fps: float = 30.0,
+        connection_check: "Callable[[], bool] | None" = None,
     ):
         """Initialize the action executor.
 
@@ -107,11 +110,13 @@ class ActionExecutor:
             robot: Robot wrapper instance
             shutdown_event: Event to signal shutdown
             fps: Action execution frequency
+            connection_check: Optional callable that returns True if connected to server
         """
         self.arm_id = arm_id
         self.robot = robot
         self.shutdown_event = shutdown_event
         self.fps = fps
+        self._connection_check = connection_check
 
         self._action_queue: Queue[Tensor | None] = Queue()
         self._thread: Thread | None = None
@@ -172,6 +177,18 @@ class ActionExecutor:
 
         try:
             while not self.shutdown_event.is_set():
+                # Check server connection before processing actions
+                if self._connection_check is not None and not self._connection_check():
+                    # Not connected to server, skip action execution
+                    # Clear any pending actions since we can't execute them safely
+                    while not self._action_queue.empty():
+                        try:
+                            self._action_queue.get_nowait()
+                        except Empty:
+                            break
+                    time.sleep(0.1)
+                    continue
+
                 start_time = time.perf_counter()
 
                 try:
@@ -188,6 +205,11 @@ class ActionExecutor:
 
                 if self.shutdown_event.is_set():
                     break
+
+                # Double-check connection before sending action
+                if self._connection_check is not None and not self._connection_check():
+                    # Lost connection, skip this action
+                    continue
 
                 # Process and send action
                 try:
@@ -247,6 +269,7 @@ class PolicyRunner:
         shutdown_event: Event,
         fps: float = 30.0,
         queue_threshold: int = 0,
+        connection_check: "Callable[[], bool] | None" = None,
     ):
         """Initialize the policy runner.
 
@@ -259,6 +282,7 @@ class PolicyRunner:
             queue_threshold: Only run inference when executor queue size <= this value.
                              Set to 0 to only infer when queue is empty (recommended
                              for ACT policies without RTC).
+            connection_check: Optional callable that returns True if connected to server
         """
         self.arm_id = arm_id
         self.robot = robot
@@ -266,6 +290,7 @@ class PolicyRunner:
         self.shutdown_event = shutdown_event
         self.fps = fps
         self.queue_threshold = queue_threshold
+        self._connection_check = connection_check
 
         self._current_policy: PolicyWrapper | None = None
         self._policy_lock = Lock()
@@ -345,6 +370,12 @@ class PolicyRunner:
 
         try:
             while not self.shutdown_event.is_set():
+                # Check server connection before running inference
+                if self._connection_check is not None and not self._connection_check():
+                    # Not connected to server, skip inference
+                    time.sleep(0.1)
+                    continue
+
                 # Wait until active, checking shutdown frequently
                 if not self._active.wait(timeout=0.1):
                     if self.shutdown_event.is_set():
@@ -353,6 +384,11 @@ class PolicyRunner:
 
                 if self.shutdown_event.is_set():
                     break
+
+                # Double-check connection after wait
+                if self._connection_check is not None and not self._connection_check():
+                    # Lost connection while waiting
+                    continue
 
                 with self._policy_lock:
                     policy = self._current_policy
@@ -444,6 +480,7 @@ class ArmController:
         sort_policy: PolicyWrapper,
         fps: float = 30.0,
         shutdown_event: Event | None = None,
+        connection_check: "Callable[[], bool] | None" = None,
     ):
         """Initialize the arm controller.
 
@@ -455,11 +492,15 @@ class ArmController:
             sort_policy: Policy for sorting (black arm)
             fps: Action/inference frequency
             shutdown_event: Optional shutdown event to use. If None, creates a new one.
+            connection_check: Optional callable that returns True if connected to server.
+                              When provided, policy inference and actions are only executed
+                              while connected.
         """
         self.fps = fps
         self._shutdown_event = shutdown_event if shutdown_event is not None else Event()
+        self._connection_check = connection_check
         self._state_lock = Lock()
-        self._current_state = SystemState.RUNNING
+        self._current_state = SystemState.STOPPED
 
         # Store policies
         self.pick_policy = pick_policy
@@ -473,10 +514,10 @@ class ArmController:
 
         # Create executors
         self._blue_executor = ActionExecutor(
-            ArmId.BLUE, self._blue_robot, self._shutdown_event, fps
+            ArmId.BLUE, self._blue_robot, self._shutdown_event, fps, connection_check
         )
         self._black_executor = ActionExecutor(
-            ArmId.BLACK, self._black_robot, self._shutdown_event, fps
+            ArmId.BLACK, self._black_robot, self._shutdown_event, fps, connection_check
         )
 
         # Create policy runners
@@ -489,6 +530,7 @@ class ArmController:
             self._shutdown_event,
             fps,
             queue_threshold=0,
+            connection_check=connection_check,
         )
         self._black_runner = PolicyRunner(
             ArmId.BLACK,
@@ -497,6 +539,7 @@ class ArmController:
             self._shutdown_event,
             fps,
             queue_threshold=0,
+            connection_check=connection_check,
         )
 
     def connect(self) -> None:
@@ -581,13 +624,24 @@ class ArmController:
         """Apply the given state to the arm controllers.
 
         State table:
+        - STOPPED: blue=idle, black=idle (disconnected from server)
         - RUNNING: blue=pick (active), black=idle
         - FLIPPING: blue=idle, black=flip (active)
         - SORTING: blue=idle, black=sort (active)
         """
         logger.info(f"📋 Applying state configuration for {state.value}...")
 
-        if state == SystemState.RUNNING:
+        if state == SystemState.STOPPED:
+            # Both arms are idle - disconnected from server
+            logger.info("  → Blue arm: Clearing policy and deactivating (STOPPED)")
+            self._blue_runner.deactivate()
+            self._blue_runner.set_policy(None)
+
+            logger.info("  → Black arm: Clearing policy and deactivating (STOPPED)")
+            self._black_runner.deactivate()
+            self._black_runner.set_policy(None)
+
+        elif state == SystemState.RUNNING:
             # Blue arm runs pick policy
             logger.info("  → Blue arm: Setting PICK policy and activating")
             self._blue_runner.set_policy(self.pick_policy)

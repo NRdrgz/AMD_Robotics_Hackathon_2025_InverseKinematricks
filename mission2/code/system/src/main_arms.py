@@ -423,7 +423,18 @@ async def run_arms_computer(args: argparse.Namespace) -> None:
             camera_fps=args.camera_fps,
         )
 
-        # Create arm controller
+        # Create WebSocket client first (needed for connection check)
+        # Note: Callbacks will be set after arm_controller is created
+        ws_client = ArmsWebSocketClient(
+            host=args.conveyor_host,
+            port=args.conveyor_port,
+            on_state_change=None,  # Will be set after arm_controller is created
+            on_connected=None,  # Will be set after arm_controller is created
+            on_disconnected=None,  # Will be set after arm_controller is created
+        )
+
+        # Create arm controller with connection check
+        # Policy inference and robot actions will only run when connected to the server
         logger.info("Creating arm controller...")
         arm_controller = ArmController(
             blue_arm_config=blue_arm_config,
@@ -433,37 +444,60 @@ async def run_arms_computer(args: argparse.Namespace) -> None:
             sort_policy=sort_policy,
             fps=args.fps,
             shutdown_event=shutdown_event,
+            connection_check=lambda: ws_client.is_connected,
         )
 
-        # Connect to robots
-        arm_controller.connect()
-
-        # Start arm controller
-        arm_controller.start()
-
-        # Create WebSocket client
+        # Now set the callbacks
         async def on_state_change(state: SystemState) -> bool:
             logger.info(
                 f"📡 WebSocket received state change notification: {state.value}"
             )
             return await handle_state_change(state, arm_controller)
 
-        ws_client = ArmsWebSocketClient(
-            host=args.conveyor_host,
-            port=args.conveyor_port,
-            on_state_change=on_state_change,
-        )
+        async def on_connected() -> None:
+            """Handle connection established - transition from STOPPED to RUNNING."""
+            current = arm_controller.get_state()
+            if current == SystemState.STOPPED:
+                logger.info(
+                    "🔌 Connection established - transitioning from STOPPED to RUNNING"
+                )
+                arm_controller.set_state(SystemState.RUNNING)
+            else:
+                logger.info(
+                    f"🔌 Connection established (current state: {current.value})"
+                )
+
+        async def on_disconnected() -> None:
+            """Handle connection lost - transition to STOPPED."""
+            current = arm_controller.get_state()
+            if current != SystemState.STOPPED:
+                logger.warning(
+                    f"🔌 Connection lost - transitioning from {current.value} to STOPPED"
+                )
+                arm_controller.set_state(SystemState.STOPPED)
+
+        ws_client.on_state_change = on_state_change
+        ws_client.on_connected = on_connected
+        ws_client.on_disconnected = on_disconnected
+
+        # Connect to robots
+        arm_controller.connect()
+
+        # Start arm controller (starts in STOPPED state)
+        arm_controller.start()
+        logger.info("⏸️  Started in STOPPED state - waiting for server connection")
 
         # Start WebSocket client
         await ws_client.start()
         logger.info(f"🔌 Connecting to conveyor computer at {ws_client.uri}...")
 
-        # Wait for connection
+        # Wait for connection (on_connected callback will transition to RUNNING)
         if await ws_client.wait_for_connection(timeout=30.0):
-            logger.info("Connected to conveyor computer")
+            logger.info("✅ Connected to conveyor computer")
         else:
             logger.warning(
-                "Could not connect to conveyor computer, will keep trying..."
+                "Could not connect to conveyor computer, will keep trying... "
+                "(staying in STOPPED state)"
             )
 
         # Main loop - just wait for shutdown
