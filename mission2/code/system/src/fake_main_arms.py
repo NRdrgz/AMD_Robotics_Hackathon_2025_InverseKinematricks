@@ -24,8 +24,17 @@ import logging
 import signal
 import sys
 
-from communication.client import ArmsWebSocketClient
-from communication.messages import SystemState
+import websockets
+from communication.messages import (
+    AckMessage,
+    PingMessage,
+    PongMessage,
+    SetStateMessage,
+    SystemState,
+    parse_message,
+    serialize_message,
+)
+from websockets.client import WebSocketClientProtocol
 
 logging.basicConfig(
     level=logging.INFO,
@@ -144,6 +153,8 @@ class FakeArmController:
 async def run_fake_arms(args: argparse.Namespace) -> None:
     """Main async function for fake arms computer.
 
+    Uses direct WebSocket connection with verbose logging for debugging.
+
     Args:
         args: Parsed command line arguments
     """
@@ -169,32 +180,91 @@ async def run_fake_arms(args: argparse.Namespace) -> None:
         fail_rate=args.fail_rate,
     )
 
-    ws_client: ArmsWebSocketClient | None = None
+    uri = f"ws://{args.conveyor_host}:{args.conveyor_port}"
+    websocket: WebSocketClientProtocol | None = None
+
+    async def handle_messages(ws: WebSocketClientProtocol) -> None:
+        """Handle incoming WebSocket messages with verbose logging."""
+        try:
+            async for raw_message in ws:
+                # Log the raw message
+                logger.info(f"📨 RAW MESSAGE RECEIVED: {raw_message}")
+
+                try:
+                    msg = parse_message(raw_message)
+                    logger.info(f"📨 PARSED MESSAGE: {type(msg).__name__} - {msg}")
+
+                    if isinstance(msg, SetStateMessage):
+                        logger.info(f"🎯 SET_STATE command received: {msg.state.value}")
+                        success = await arm_controller.set_state(msg.state)
+
+                        # Send ACK
+                        ack = AckMessage(state=msg.state, success=success)
+                        ack_json = serialize_message(ack)
+                        logger.info(f"📤 Sending ACK: {ack_json}")
+                        await ws.send(ack_json)
+                    else:
+                        # Handle PING with PONG
+                        if isinstance(msg, PingMessage):
+                            pong = PongMessage()
+                            pong_json = serialize_message(pong)
+                            logger.debug(f"📤 Sending PONG: {pong_json}")
+                            await ws.send(pong_json)
+
+                except ValueError as e:
+                    logger.error(f"❌ Failed to parse message: {e}")
+                    logger.error(f"   Raw message was: {raw_message}")
+
+        except websockets.exceptions.ConnectionClosed as e:
+            logger.info(f"🔌 Connection closed: {e}")
 
     try:
-        # Create WebSocket client
-        ws_client = ArmsWebSocketClient(
-            host=args.conveyor_host,
-            port=args.conveyor_port,
-            on_state_change=None,  # Will be set below
-            on_connected=None,
-            on_disconnected=None,
-        )
+        logger.info(f"🔌 Connecting to {uri}...")
 
-        # Set callbacks
-        async def on_state_change(state: SystemState) -> bool:
-            logger.info(f"📡 Received state change request: {state.value}")
-            return await arm_controller.set_state(state)
+        # Connection loop with reconnection
+        while not shutdown_event.is_set():
+            try:
+                async with websockets.connect(uri) as ws:
+                    websocket = ws
+                    logger.info(f"✅ Connected to {uri}")
 
-        async def on_connected() -> None:
-            current = arm_controller.get_state()
-            if current == SystemState.STOPPED:
-                logger.info("🔌 Connected! Transitioning from STOPPED to RUNNING")
-                await arm_controller.set_state(SystemState.RUNNING)
-            else:
-                logger.info(f"🔌 Connected! (current state: {current.value})")
+                    # Transition to RUNNING on connect
+                    current = arm_controller.get_state()
+                    if current == SystemState.STOPPED:
+                        logger.info(
+                            "🔌 Connected! Transitioning from STOPPED to RUNNING"
+                        )
+                        await arm_controller.set_state(SystemState.RUNNING)
 
-        async def on_disconnected() -> None:
+                    logger.info("=" * 50)
+                    logger.info("Fake arms computer running. Press Ctrl+C to stop.")
+                    logger.info("Listening for messages...")
+                    logger.info("=" * 50)
+
+                    # Handle messages until disconnected or shutdown
+                    message_task = asyncio.create_task(handle_messages(ws))
+
+                    # Wait for either shutdown or message handler to complete
+                    while not shutdown_event.is_set():
+                        if message_task.done():
+                            break
+                        await asyncio.sleep(0.1)
+
+                    if not message_task.done():
+                        message_task.cancel()
+                        try:
+                            await message_task
+                        except asyncio.CancelledError:
+                            pass
+
+            except websockets.exceptions.ConnectionClosed as e:
+                logger.warning(f"🔌 Disconnected: {e}")
+            except ConnectionRefusedError:
+                logger.warning(f"🔌 Connection refused to {uri}")
+            except Exception as e:
+                logger.error(f"🔌 Connection error: {e}")
+
+            # Transition to STOPPED on disconnect
             current = arm_controller.get_state()
             if current != SystemState.STOPPED:
                 logger.warning(
@@ -202,29 +272,9 @@ async def run_fake_arms(args: argparse.Namespace) -> None:
                 )
                 await arm_controller.set_state(SystemState.STOPPED)
 
-        ws_client.on_state_change = on_state_change
-        ws_client.on_connected = on_connected
-        ws_client.on_disconnected = on_disconnected
-
-        # Start WebSocket client
-        await ws_client.start()
-        logger.info(f"🔌 Connecting to conveyor computer at {ws_client.uri}...")
-
-        # Wait for connection
-        if await ws_client.wait_for_connection(timeout=30.0):
-            logger.info("✅ Connected to conveyor computer")
-        else:
-            logger.warning(
-                "⚠️  Could not connect to conveyor computer, will keep trying..."
-            )
-
-        # Main loop - just wait for shutdown
-        logger.info("=" * 50)
-        logger.info("Fake arms computer running. Press Ctrl+C to stop.")
-        logger.info("=" * 50)
-
-        while not shutdown_event.is_set():
-            await asyncio.sleep(0.1)
+            if not shutdown_event.is_set():
+                logger.info("🔄 Reconnecting in 2 seconds...")
+                await asyncio.sleep(2.0)
 
     except Exception as e:
         logger.error(f"Fatal error: {e}")
@@ -232,14 +282,6 @@ async def run_fake_arms(args: argparse.Namespace) -> None:
 
     finally:
         logger.info("Shutting down...")
-
-        if ws_client:
-            try:
-                await asyncio.wait_for(ws_client.stop(), timeout=2.0)
-            except asyncio.TimeoutError:
-                logger.warning("WebSocket client stop timed out")
-            except Exception as e:
-                logger.error(f"Error stopping WebSocket client: {e}")
 
         # Print state history
         arm_controller.print_history()
