@@ -43,6 +43,18 @@ lerobot-record \
     --dataset.single_task="Pick up the package and place it on the black conveyor belt." \
     --resume=true
 
+# eval mission 2 - blue pick
+lerobot-record  \
+  --robot.type=so101_follower \
+  --robot.port=/dev/tty.usbmodem5A680116011 \
+  --robot.cameras="{top: {type: opencv, index_or_path: 1, width: 640, height: 480, fps: 30}, wrist: {type: opencv, index_or_path: 0, width: 640, height: 480, fps: 30}}" \
+  --robot.id=blue_follower \
+  --display_data=false \
+  --dataset.repo_id=giacomoran/eval_blue_pick_act \
+  --dataset.single_task="Pick up the package and place it on the black conveyor belt." \
+  --policy.path=giacomoran/hackathon_amd_mission2_blue_pick
+  --dataset.push_to_hub=false
+
 # record dataset mission 2 - black flip
 lerobot-record \
     --robot.type=so101_follower \
