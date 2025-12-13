@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING
 from communication.messages import SystemState
 from lerobot.processor.factory import (
     make_default_robot_action_processor,
-    make_default_robot_observation_processor,
 )
 from lerobot.robots import Robot
 from lerobot.robots.utils import make_robot_from_config
@@ -230,7 +229,6 @@ class PolicyRunner:
         self._policy_lock = Lock()
         self._thread: Thread | None = None
         self._active = Event()  # Whether this runner should be producing actions
-        self._robot_observation_processor = make_default_robot_observation_processor()
 
     def start(self) -> None:
         """Start the policy runner thread."""
@@ -299,11 +297,11 @@ class PolicyRunner:
                 try:
                     # Get observation
                     obs = self.robot.get_observation()
-                    obs_processed = self._robot_observation_processor(obs)
 
                     # Get action from policy
+                    # PolicyWrapper handles observation processing internally
                     action = policy.get_action(
-                        obs_processed,
+                        obs,
                         self.robot.observation_features,
                     )
 

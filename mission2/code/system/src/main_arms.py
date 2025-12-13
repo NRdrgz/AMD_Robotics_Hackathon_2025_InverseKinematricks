@@ -14,6 +14,8 @@ Usage:
         --blue-top-camera=/dev/video6 \
         --blue-wrist-camera=/dev/video8 \
         --black-top-camera=/dev/video4 \
+        --blue-arm-id=blue_follower \
+        --black-arm-id=black_follower \
         --black-wrist-camera=/dev/video2 \
         --conveyor-host=100.86.200.31 \
         --device=cuda
