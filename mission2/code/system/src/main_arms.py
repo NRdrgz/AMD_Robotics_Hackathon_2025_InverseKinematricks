@@ -30,6 +30,14 @@ import signal
 import sys
 from threading import Event
 
+# Configure logging BEFORE any lerobot imports to avoid lerobot's logger config interfering
+# Use force=True to prevent lerobot from overriding our logging configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    force=True,  # Force reconfiguration even if logging was already configured
+)
+
 from arm_controller import ArmController
 from communication.client import ArmsWebSocketClient
 from communication.messages import SystemState
@@ -40,10 +48,20 @@ from policies.flip import create_flip_policy_config
 from policies.pick import create_pick_policy_config
 from policies.sort import create_sort_policy_config
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+# Re-assert our logging configuration after lerobot imports to ensure it's not overridden
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+# Remove any handlers lerobot might have added
+for handler in root_logger.handlers[:]:
+    root_logger.removeHandler(handler)
+# Add our own handler if none exists
+if not root_logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    )
+    root_logger.addHandler(handler)
+
 logger = logging.getLogger(__name__)
 
 
@@ -174,6 +192,11 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=30.0,
         help="Action execution frequency in Hz",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging",
     )
 
     return parser.parse_args()
@@ -412,6 +435,10 @@ async def run_arms_computer(args: argparse.Namespace) -> None:
 def main() -> None:
     """Main entry point."""
     args = parse_args()
+
+    # Set logging level based on debug flag
+    if args.debug:
+        logging.getLogger().setLevel(logging.DEBUG)
 
     logger.info("=" * 50)
     logger.info("  ARMS COMPUTER - Package Sorting System")
