@@ -21,7 +21,7 @@ from lerobot.processor.factory import (
 )
 from lerobot.robots import Robot
 from lerobot.robots.utils import make_robot_from_config
-from lerobot.utils import precise_sleep
+from lerobot.utils.robot_utils import precise_sleep
 from policies.base import PolicyWrapper
 from torch import Tensor
 
