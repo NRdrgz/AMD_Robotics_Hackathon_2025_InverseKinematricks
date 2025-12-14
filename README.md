@@ -13,11 +13,19 @@
 
 **Summary:**
 
-We got inspired by recent advances in humanoid robotics, especially that cool Figure robot demo at an Amazon fulfillment center where it was flipping packages to expose barcodes for scanning:
+# Flip & Ship: Watch the Demo!
+<a href="https://www.youtube.com/watch?v=QZKOs_gODcs" target="_blank">
+  <img src="assets/Thumbnail.png" 
+       alt="Watch the demo" 
+       style="width:1000px;"/>
+</a>
 
-![Figure robot sorting packages](/assets/figure_sorting_packages.gif)
 
-We thought: "Hey, we can do something similar!" So we built our version using more affordable hardware and open-source VLA models, plus a healthy dose of creative engineering! 
+We got inspired by recent advances in humanoid robotics, especially that cool Figure robot demo at an Amazon fulfillment center where it was flipping packages to expose barcodes for scanning:  
+
+<img src="assets/figure_sorting_packages.gif" alt="Figure robot sorting packages" width="400"/>  
+
+We thought: "Hey, we can do something similar!" So we built our version using more affordable hardware and open-source VLA models, plus a healthy dose of creative engineering!  
 
 ## Introducing Our Project: **Flip & Ship!**
 
@@ -49,10 +57,14 @@ Our system can be used in a package delivery center to make sure barcodes are fa
 
 ### 2. Creativity
 
-- We're using basic skills that have been shown in hackathons before (pick and place, sorting), but we're combining them in a way that actually solves a real-world problem!
+- We're using basic skills that have been shown in hackathons before (pick and place, sorting), but we're combining them in a way that actually solves a real-world problem!  
 - The "flipping packages" skill has never been demonstrated before to our knowledge.
-- Let's be honest, our DIY conveyor belt made from a salvaged 3D printer motor and tape? That's peak hackathon creativity right there!
-- Finally, we developed a novel approach for fast policy switching during inference for Arm 2. Inspired by recent developments in [RTC](https://huggingface.co/docs/lerobot/en/rtc), we developed a queuing system where we have 2 threads running policies and pushing to a queue, and 1 thread running inference, choosing what policy to listen to (sorting or flipping) depending on what the computer vision and conveyor belt system tells it. See the Technical Implementation section for more details!
+- Let's be honest, our DIY conveyor belt made from a salvaged 3D printer motor and tape? That's peak hackathon creativity right there!  
+- We developed a novel approach for fast policy switching during inference for Arm 2. Inspired by recent developments in [RTC](https://huggingface.co/docs/lerobot/en/rtc), we developed a queuing system where we have 2 threads running policies and pushing to a queue, and 1 thread running inference, choosing what policy to listen to (sorting or flipping) depending on what the computer vision and conveyor belt system tells it. See the Technical Implementation section for more details!  
+- Finally, a hackathon would not be a hackathon without a fancy webapp, so we built one to track our packages color and delivery status:
+
+<img src="assets/webapp.jpeg" alt="Web App Screenshot" width="700"/>
+
 
 ### 3. Technical Implementations
 
@@ -113,7 +125,7 @@ Then we trained SmolVLA models (5 hours for 80,000 steps).
 ![Loss Smolvla](assets/loss_smolvla_model.jpeg)
 
 Here are our 3 final trained models:
-- [Arm 1 Pick packages from cardboard](https://huggingface.co/giacomoran/hackathon_amd_mission2_blue_pick_act_cardboard_v2) (ACT model)
+- [Arm 1 Pick packages from cardboard](https://huggingface.co/giacomoran/hackathon_amd_mission2_blue_pick_cardboard_smolvla_v2) (SmolVLA)
 - [Arm 2 Flip packages](https://huggingface.co/giacomoran/hackathon_amd_mission2_black_flip_smolvla_v3) (SmolVLA)
 - [Arm 2 Sort packages](https://huggingface.co/giacomoran/hackathon_amd_mission2_black_sort_smolvla_v3) (SmolVLA)
 
@@ -121,7 +133,9 @@ Here are our 3 final trained models:
 
 All policies run on the AMD laptop using the Radeon 890M GPU, with both arms connected and controlled on the same laptop. The system demonstrates real-time performance with smooth policy switching and low-latency inference.
 
-*(Discussion around latency and memory usage to be added)*
+Here is a screenshot of `htop` running during inference. As shown below, our system uses only 8 GiB of memory during policy inference, leaving ample headroom out of a total of 30 GiB:
+
+<img src="assets/htop_screenshot.png" alt="htop inference screenshot" width="600"/>
 
 ### 4. Ease of Use
 
@@ -138,10 +152,6 @@ All policies run on the AMD laptop using the Radeon 890M GPU, with both arms con
 - [Model on HF](https://huggingface.co/giacomoran/hackathon_amd_mission1)
 
 ### Mission 2
-
-*(TODO)*
-
-*For example, you can provide links to:*
 
 - [README](https://github.com/NRdrgz/AMD_Robotics_Hackathon_2025_InverseKinematricks/blob/main/README.md)
 - *Link to a video of your robot performing the task*
