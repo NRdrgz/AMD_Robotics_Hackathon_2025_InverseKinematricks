@@ -35,7 +35,8 @@ def create_flip_policy_config(
         hf_path=hf_path,
         policy_type=PolicyType.SMOLVLA,
         device=device,
-        rtc_enabled=False,  # RTC disabled for SmolVLA
+        rtc_enabled=True,
+        rtc_execution_horizon=12,
         fps=30.0,
         task=task,
     )
