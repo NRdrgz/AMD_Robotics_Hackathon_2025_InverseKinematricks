@@ -37,7 +37,7 @@ We designed and built a compact sorting station inspired by modern fulfillment c
 ![Project schematic](assets/setup_excalidraw.png)
 
 **Real-world setup:**  
-![Real World Setup](assets/setup_real_world.jpg)
+![Real World Setup](assets/setup_real_world.jpeg)
 
 ### Hardware
 
@@ -60,7 +60,7 @@ Our system can be used in a package delivery center to make sure barcodes are fa
 - We're using basic skills that have been shown in hackathons before (pick and place, sorting), but we're combining them in a way that actually solves a real-world problem!  
 - The "flipping packages" skill has never been demonstrated before to our knowledge.
 - Let's be honest, our DIY conveyor belt made from a salvaged 3D printer motor and tape? That's peak hackathon creativity right there!  
-- We developed a novel approach for fast policy switching during inference for Arm 2. Inspired by recent developments in [RTC](https://huggingface.co/docs/lerobot/en/rtc), we developed a queuing system where we have 2 threads running policies and pushing to a queue, and 1 thread running inference, choosing what policy to listen to (sorting or flipping) depending on what the computer vision and conveyor belt system tells it. See the Technical Implementation section for more details!  
+- We developed a novel approach for fast policy switching during inference for Arm 2. Inspired by recent developments in [RTC](https://huggingface.co/docs/lerobot/en/rtc), we developed a queuing system where we have 2 threads per arm: 1 running policies and pushing to a queue, and 1 thread running inference, choosing what policy to listen to (sorting or flipping) depending on what the computer vision and conveyor belt system tells it. This allows to switch between policies without latency. See the Technical Implementation section for more details!  
 - Finally, a hackathon would not be a hackathon without a fancy webapp, so we built one to track our packages color and delivery status:
 
 <img src="assets/webapp.jpeg" alt="Web App Screenshot" width="700"/>
@@ -76,7 +76,7 @@ We developed 3 policies in total:
 
 The computer vision system is responsible for selecting the appropriate policy for Arm 2. If it can detect the package color, it instructs Arm 2 to sort the package. If the color (and thus the barcode) is not visible, it instructs Arm 2 to flip the package.
 
-While we believe that both flipping and sorting could eventually be handled by a single unified policy, we segmented them into smaller, simpler policies given our time constraints. This modular approach also provides better control and debugging capabilities.
+Computer vision is used solely to start or stop each policy. The sorting policy for Arm 2 independently determines the correct color for sorting, without input from computer vision.
 
 The computer vision system also controls the conveyor belt. The belt runs continuously and only stops when a package is detected at the end, ready for processing.
 
@@ -131,7 +131,9 @@ Here are our 3 final trained models:
 
 #### Inference
 
-All policies run on the AMD laptop using the Radeon 890M GPU, with both arms connected and controlled on the same laptop. The system demonstrates real-time performance with smooth policy switching and low-latency inference.
+All SmolVLA policies run on the AMD laptop using the Radeon 890M GPU, with both arms connected and controlled on the same laptop. The system demonstrates real-time performance with smooth policy switching and low-latency inference.
+
+We are also using RTC for all of our 3 policies to achieve smoother movements.  
 
 Here is a screenshot of `htop` running during inference. As shown below, our system uses only 8 GiB of memory during policy inference, leaving ample headroom out of a total of 30 GiB:
 
@@ -141,6 +143,7 @@ Here is a screenshot of `htop` running during inference. As shown below, our sys
 
 - Our system is easy to use and fully centralized, handling all arms, conveyor belt, computer vision, and state management in a unified architecture
 - Leveraging VLA (Vision-Language-Action) models, we can quickly learn and adapt to new types of packages with minimal retraining
+- Our Webapp makes it easy to monitor package states, even when you're not within the room. 
 
 ## Additional Links
 
