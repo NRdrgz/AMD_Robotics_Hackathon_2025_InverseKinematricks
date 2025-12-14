@@ -37,7 +37,7 @@ def create_sort_policy_config(
         policy_type=PolicyType.SMOLVLA,
         device=device,
         rtc_enabled=True,
-        rtc_execution_horizon=12,
+        rtc_execution_horizon=4,
         fps=30.0,
         task=task,
     )
