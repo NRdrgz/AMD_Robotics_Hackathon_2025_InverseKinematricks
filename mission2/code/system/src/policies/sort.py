@@ -7,7 +7,7 @@ Based on SmolVLA (no RTC).
 from .base import PolicyConfig, PolicyType
 
 # Default HuggingFace path for the sort policy
-DEFAULT_SORT_POLICY_PATH = "giacomoran/hackathon_amd_mission2_black_sort_smolvla_v3"
+DEFAULT_SORT_POLICY_PATH = "giacomoran/hackathon_amd_mission2_black_sort_smolvla_v4"
 
 # Default task prompt
 DEFAULT_SORT_TASK = (

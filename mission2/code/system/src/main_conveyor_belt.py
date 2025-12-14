@@ -9,7 +9,7 @@ This script:
 
 Usage:
     uv run src/main_conveyor_belt.py \
-        --belt-port=/dev/ttyUSB0 \
+        --belt-port=/dev/cu.usbmodem11201 \
         --cv-app-path=../cv_classfication/src/app.py \
         --cv-api-url=http://localhost:5001 \
         --websocket-port=8765 \
