@@ -7,7 +7,9 @@ Based on ACT.
 from .base import PolicyConfig, PolicyType
 
 # Default HuggingFace path for the pick policy
-DEFAULT_PICK_POLICY_PATH = "giacomoran/hackathon_amd_mission2_blue_pick_act_cardboard"
+DEFAULT_PICK_POLICY_PATH = (
+    "giacomoran/hackathon_amd_mission2_blue_pick_act_cardboard_v2"
+)
 
 # Default task prompt
 DEFAULT_PICK_TASK = "Pick up the package and place it on the black conveyor belt."
