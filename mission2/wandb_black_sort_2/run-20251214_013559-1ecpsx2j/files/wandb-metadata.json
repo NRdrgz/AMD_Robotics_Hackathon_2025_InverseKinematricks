@@ -1,0 +1,62 @@
+{
+  "os":  "Linux-6.8.0-83-generic-x86_64-with-glibc2.39",
+  "python":  "CPython 3.12.3",
+  "startedAt":  "2025-12-14T01:35:59.293793Z",
+  "args":  [
+    "--dataset.repo_id=giacomoran/hackathon_amd_mission2_black_sort",
+    "--rename_map={\"observation.images.top\": \"observation.images.camera1\", \"observation.images.wrist\": \"observation.images.camera2\"}",
+    "--policy.empty_cameras=1",
+    "--policy.load_vlm_weights=true",
+    "--policy.prefix_length=-1",
+    "--policy.pad_language_to=longest",
+    "--policy.num_expert_layers=-1",
+    "--batch_size=32",
+    "--steps=80000",
+    "--output_dir=outputs/train/hackathon_amd_mission2_black_sort_smolvla_v3",
+    "--job_name=hackathon_amd_mission2_black_sort_smolvla_v3",
+    "--policy.repo_id=giacomoran/hackathon_amd_mission2_black_sort_smolvla_v3",
+    "--policy.device=cuda",
+    "--policy.path=lerobot/smolvla_base",
+    "--policy.push_to_hub=true",
+    "--wandb.enable=true",
+    "--policy.chunk_size=30",
+    "--policy.n_action_steps=30",
+    "--save_freq=20000",
+    "--optimizer.lr=1e-3",
+    "--optimizer.betas=[0.9,0.999]",
+    "--optimizer.weight_decay=1e-2"
+  ],
+  "program":  "/opt/venv/bin/lerobot-train",
+  "root":  "outputs/train/hackathon_amd_mission2_black_sort_smolvla_v3",
+  "host":  "1e2259387416",
+  "executable":  "/opt/venv/bin/python",
+  "cpu_count":  20,
+  "cpu_count_logical":  20,
+  "gpu":  "AMD Instinct MI300X VF",
+  "gpu_count":  1,
+  "disk":  {
+    "/":  {
+      "total":  "747760488448",
+      "used":  "77736828928"
+    }
+  },
+  "memory":  {
+    "total":  "253347164160"
+  },
+  "gpu_amd":  [
+    {
+      "id":  "0",
+      "uniqueId":  "0xabc981cee3001b75",
+      "vbiosVersion":  "113-M3000100-103",
+      "performanceLevel":  "auto",
+      "maxPower":  "750.0",
+      "series":  "AMD Instinct MI300X VF",
+      "model":  "0x74b5",
+      "vendor":  "Advanced Micro Devices, Inc. [AMD/ATI]",
+      "sku":  "M3000100",
+      "sclkRange":  "500Mhz - 2100Mhz",
+      "mclkRange":  "900Mhz - 1300Mhz"
+    }
+  ],
+  "writerId":  "mvjzyby2ky2o16owg7e8p862uhejmdba"
+}
