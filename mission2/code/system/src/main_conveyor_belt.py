@@ -13,7 +13,8 @@ Usage:
         --cv-app-path=../cv_classfication/src/app.py \
         --cv-api-url=http://localhost:5001 \
         --websocket-port=8765 \
-        --transition-delay=2.0
+        --sorting-to-running-delay=2.0 \
+        --running-to-sorting-delay=6.0
 """
 
 from __future__ import annotations
@@ -198,10 +199,16 @@ def parse_args() -> argparse.Namespace:
 
     # State machine configuration
     parser.add_argument(
-        "--transition-delay",
+        "--sorting-to-running-delay",
         type=float,
         default=2.0,
-        help="Delay in seconds for SORTING->RUNNING transition",
+        help="Delay in seconds before transitioning from SORTING to RUNNING after package disappears",
+    )
+    parser.add_argument(
+        "--running-to-sorting-delay",
+        type=float,
+        default=6.0,
+        help="Delay in seconds before transitioning from RUNNING to SORTING/FLIPPING after package is detected",
     )
     parser.add_argument(
         "--poll-interval",
@@ -533,7 +540,7 @@ async def run_conveyor_computer(args: argparse.Namespace) -> None:
 
         state_machine = PackageSortingStateMachine(
             on_state_change=_schedule_state_change,
-            sorting_to_running_delay=args.transition_delay,
+            sorting_to_running_delay=args.sorting_to_running_delay,
         )
 
         # Start belt (initial state is RUNNING)
@@ -570,11 +577,14 @@ async def run_conveyor_computer(args: argparse.Namespace) -> None:
                         running_detection_time = time.time()
                         last_package_detected_in_running = True
                         logger.info(
-                            f"Package detected in RUNNING state, waiting 6.0s before transitioning"
+                            f"Package detected in RUNNING state, waiting {args.running_to_sorting_delay}s before transitioning"
                         )
                         # Don't process status yet, stay in RUNNING
                     elif running_detection_time is not None:
-                        if time.time() - running_detection_time >= 6.0:
+                        if (
+                            time.time() - running_detection_time
+                            >= args.running_to_sorting_delay
+                        ):
                             # Delay complete, allow transition
                             state_machine.process_cv_status(cv_status)
                             running_detection_time = None
@@ -599,9 +609,11 @@ async def run_conveyor_computer(args: argparse.Namespace) -> None:
                     if sorting_exit_time is None:
                         sorting_exit_time = time.time()
                         logger.info(
-                            f"Package disappeared, waiting {args.transition_delay}s before RUNNING"
+                            f"Package disappeared, waiting {args.sorting_to_running_delay}s before RUNNING"
                         )
-                    elif time.time() - sorting_exit_time >= args.transition_delay:
+                    elif (
+                        time.time() - sorting_exit_time >= args.sorting_to_running_delay
+                    ):
                         # Delay complete, allow transition
                         state_machine.process_cv_status(cv_status)
                         sorting_exit_time = None
@@ -672,7 +684,8 @@ def main() -> None:
     logger.info(f"  CV app: {args.cv_app_path}")
     logger.info(f"  CV API: {args.cv_api_url}")
     logger.info(f"  WebSocket: {args.websocket_host}:{args.websocket_port}")
-    logger.info(f"  Transition delay: {args.transition_delay}s")
+    logger.info(f"  Sorting->Running delay: {args.sorting_to_running_delay}s")
+    logger.info(f"  Running->Sorting delay: {args.running_to_sorting_delay}s")
     logger.info("=" * 50)
 
     try:

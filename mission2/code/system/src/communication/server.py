@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import socket
 from typing import Any, Awaitable, Callable
 
 import websockets
@@ -23,6 +24,30 @@ from .messages import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def get_local_ip() -> str:
+    """Get the local network IP address.
+
+    Returns:
+        The local IP address as a string, or 'localhost' if unable to determine.
+    """
+    try:
+        # Connect to a remote address to determine the local IP
+        # This doesn't actually send data, just determines the route
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0)
+        try:
+            # Connect to a non-routable address (doesn't need to be reachable)
+            s.connect(("10.254.254.254", 1))
+            ip = s.getsockname()[0]
+        except Exception:
+            ip = "127.0.0.1"
+        finally:
+            s.close()
+        return ip
+    except Exception:
+        return "localhost"
 
 
 class ConveyorWebSocketServer:
@@ -71,7 +96,12 @@ class ConveyorWebSocketServer:
             self.host,
             self.port,
         )
+        local_ip = get_local_ip()
         logger.info(f"WebSocket server started on ws://{self.host}:{self.port}")
+        print(f"\n{'=' * 60}")
+        print(f"Server IP address (for client connection): {local_ip}")
+        print(f"WebSocket URL: ws://{local_ip}:{self.port}")
+        print(f"{'=' * 60}\n")
 
     async def stop(self) -> None:
         """Stop the WebSocket server."""
