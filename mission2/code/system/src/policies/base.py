@@ -160,13 +160,16 @@ class PolicyWrapper:
         observation: dict[str, Tensor],
         observation_features: list[str],
     ) -> Tensor | None:
-        """Get the next action from the policy.
+        """Get the next action from the policy (legacy single-threaded method).
 
         For RTC policies: returns the next action from the action queue,
         requesting new chunks as needed.
 
         For ACT policies: returns the next action from the current chunk,
         requesting new chunks when buffer is exhausted.
+
+        Note: For proper RTC behavior with two threads, use produce_actions()
+        in the inference thread and consume_action() in the execution thread.
 
         Args:
             observation: Current observation dictionary
@@ -182,6 +185,67 @@ class PolicyWrapper:
             return self._get_action_rtc(observation, observation_features)
         else:
             return self._get_action_act(observation, observation_features)
+
+    def produce_actions(
+        self,
+        observation: dict[str, Tensor],
+        observation_features: list[str],
+    ) -> bool:
+        """Produce actions and add them to the internal queue (producer thread).
+
+        This method runs inference and merges new actions into the queue.
+        It should be called from the inference/producer thread.
+
+        For RTC policies: runs inference and merges into the ActionQueue.
+        For ACT policies: runs inference and fills the action buffer.
+
+        Args:
+            observation: Current observation dictionary
+            observation_features: List of observation feature names
+
+        Returns:
+            True if new actions were produced, False if queue was already full
+        """
+        if not self._loaded:
+            raise RuntimeError("Policy not loaded. Call load() first.")
+
+        if self.uses_rtc:
+            return self._produce_actions_rtc(observation, observation_features)
+        else:
+            return self._produce_actions_act(observation, observation_features)
+
+    def consume_action(self) -> Tensor | None:
+        """Consume the next action from the internal queue (consumer thread).
+
+        This method pulls the next action from the queue.
+        It should be called from the execution/consumer thread.
+
+        Returns:
+            Action tensor, or None if no action available
+        """
+        if not self._loaded:
+            raise RuntimeError("Policy not loaded. Call load() first.")
+
+        if self.uses_rtc:
+            return self._action_queue.get() if self._action_queue else None
+        else:
+            # For ACT: return next action from buffer
+            if self._act_action_index < len(self._act_action_buffer):
+                action = self._act_action_buffer[self._act_action_index]
+                self._act_action_index += 1
+                return action
+            return None
+
+    def queue_size(self) -> int:
+        """Get the current number of actions in the queue.
+
+        Returns:
+            Number of pending actions
+        """
+        if self.uses_rtc:
+            return self._action_queue.qsize() if self._action_queue else 0
+        else:
+            return max(0, len(self._act_action_buffer) - self._act_action_index)
 
     def _prepare_observation(
         self,
@@ -226,12 +290,127 @@ class PolicyWrapper:
 
         return self._preprocessor(obs_with_policy_features)
 
+    def _produce_actions_rtc(
+        self,
+        observation: dict[str, Tensor],
+        observation_features: list[str],
+    ) -> bool:
+        """Produce actions using RTC (for SmolVLA/Pi0 policies).
+
+        This only does inference and merges into the queue - it does NOT
+        consume from the queue. Use consume_action() to get actions.
+
+        Args:
+            observation: Current observation dictionary
+            observation_features: List of observation feature names
+
+        Returns:
+            True if new actions were produced
+        """
+        fps = self.config.fps
+        time_per_chunk = 1.0 / fps
+        get_actions_threshold = self.config.action_queue_size_to_get_new_actions
+
+        # Check if we need to request new actions
+        if self._action_queue.qsize() > get_actions_threshold:
+            return False
+
+        current_time = time.perf_counter()
+        action_index_before_inference = self._action_queue.get_action_index()
+        prev_actions = self._action_queue.get_left_over()
+
+        inference_latency = self._latency_tracker.max()
+        inference_delay = (
+            math.ceil(inference_latency / time_per_chunk)
+            if inference_latency > 0
+            else 0
+        )
+
+        # Prepare observation
+        preprocessed_obs = self._prepare_observation(observation, observation_features)
+
+        # Generate actions with RTC
+        actions = self._policy.predict_action_chunk(
+            preprocessed_obs,
+            inference_delay=inference_delay,
+            prev_chunk_left_over=prev_actions,
+        )
+
+        # Store original actions for RTC
+        original_actions = actions.squeeze(0).clone()
+
+        # Postprocess actions
+        postprocessed_actions = self._postprocessor(actions)
+        postprocessed_actions = postprocessed_actions.squeeze(0)
+
+        # Track latency
+        new_latency = time.perf_counter() - current_time
+        new_delay = math.ceil(new_latency / time_per_chunk)
+        self._latency_tracker.add(new_latency)
+
+        # Merge into action queue
+        self._action_queue.merge(
+            original_actions,
+            postprocessed_actions,
+            new_delay,
+            action_index_before_inference,
+        )
+
+        return True
+
+    def _produce_actions_act(
+        self,
+        observation: dict[str, Tensor],
+        observation_features: list[str],
+    ) -> bool:
+        """Produce actions using ACT-style inference.
+
+        This fills the action buffer. Use consume_action() to get actions.
+
+        Args:
+            observation: Current observation dictionary
+            observation_features: List of observation feature names
+
+        Returns:
+            True if new actions were produced
+        """
+        # Only produce if buffer is exhausted
+        if self._act_action_index < len(self._act_action_buffer):
+            return False
+
+        # Prepare observation
+        preprocessed_obs = self._prepare_observation(observation, observation_features)
+
+        # Generate action chunk
+        with torch.no_grad():
+            actions = self._policy.select_action(preprocessed_obs)
+
+        # Postprocess
+        postprocessed_actions = self._postprocessor(actions)
+        postprocessed_actions = postprocessed_actions.squeeze(0)
+
+        # Store in buffer
+        if postprocessed_actions.dim() == 1:
+            # Single action
+            self._act_action_buffer = [postprocessed_actions]
+        else:
+            # Action chunk - split into list
+            self._act_action_buffer = [
+                postprocessed_actions[i] for i in range(postprocessed_actions.shape[0])
+            ]
+        self._act_action_index = 0
+
+        return True
+
     def _get_action_rtc(
         self,
         observation: dict[str, Tensor],
         observation_features: list[str],
     ) -> Tensor | None:
-        """Get action using RTC (for SmolVLA/Pi0 policies).
+        """Get action using RTC (legacy single-threaded method).
+
+        Note: For proper RTC behavior, use produce_actions() in the inference
+        thread and consume_action() in the execution thread.
 
         Args:
             observation: Current observation dictionary
@@ -240,56 +419,9 @@ class PolicyWrapper:
         Returns:
             Action tensor, or None if no action available
         """
-        fps = self.config.fps
-        time_per_chunk = 1.0 / fps
-        get_actions_threshold = self.config.action_queue_size_to_get_new_actions
-
-        # Check if we need to request new actions
-        if self._action_queue.qsize() <= get_actions_threshold:
-            current_time = time.perf_counter()
-            action_index_before_inference = self._action_queue.get_action_index()
-            prev_actions = self._action_queue.get_left_over()
-
-            inference_latency = self._latency_tracker.max()
-            inference_delay = (
-                math.ceil(inference_latency / time_per_chunk)
-                if inference_latency > 0
-                else 0
-            )
-
-            # Prepare observation
-            preprocessed_obs = self._prepare_observation(
-                observation, observation_features
-            )
-
-            # Generate actions with RTC
-            actions = self._policy.predict_action_chunk(
-                preprocessed_obs,
-                inference_delay=inference_delay,
-                prev_chunk_left_over=prev_actions,
-            )
-
-            # Store original actions for RTC
-            original_actions = actions.squeeze(0).clone()
-
-            # Postprocess actions
-            postprocessed_actions = self._postprocessor(actions)
-            postprocessed_actions = postprocessed_actions.squeeze(0)
-
-            # Track latency
-            new_latency = time.perf_counter() - current_time
-            new_delay = math.ceil(new_latency / time_per_chunk)
-            self._latency_tracker.add(new_latency)
-
-            # Merge into action queue
-            self._action_queue.merge(
-                original_actions,
-                postprocessed_actions,
-                new_delay,
-                action_index_before_inference,
-            )
-
-        # Get next action from queue
+        # Produce new actions if needed
+        self._produce_actions_rtc(observation, observation_features)
+        # Consume and return next action
         return self._action_queue.get()
 
     def _get_action_act(
@@ -297,7 +429,10 @@ class PolicyWrapper:
         observation: dict[str, Tensor],
         observation_features: list[str],
     ) -> Tensor | None:
-        """Get action using ACT-style sequential execution.
+        """Get action using ACT-style sequential execution (legacy single-threaded).
+
+        Note: For proper two-thread behavior, use produce_actions() in the
+        inference thread and consume_action() in the execution thread.
 
         Args:
             observation: Current observation dictionary
@@ -306,40 +441,10 @@ class PolicyWrapper:
         Returns:
             Action tensor, or None if no action available
         """
-        # If buffer is empty or exhausted, get new chunk
-        if self._act_action_index >= len(self._act_action_buffer):
-            # Prepare observation
-            preprocessed_obs = self._prepare_observation(
-                observation, observation_features
-            )
-
-            # Generate action chunk
-            with torch.no_grad():
-                actions = self._policy.select_action(preprocessed_obs)
-
-            # Postprocess
-            postprocessed_actions = self._postprocessor(actions)
-            postprocessed_actions = postprocessed_actions.squeeze(0)
-
-            # Store in buffer
-            if postprocessed_actions.dim() == 1:
-                # Single action
-                self._act_action_buffer = [postprocessed_actions]
-            else:
-                # Action chunk - split into list
-                self._act_action_buffer = [
-                    postprocessed_actions[i]
-                    for i in range(postprocessed_actions.shape[0])
-                ]
-            self._act_action_index = 0
-
-        # Return next action from buffer
-        if self._act_action_index < len(self._act_action_buffer):
-            action = self._act_action_buffer[self._act_action_index]
-            self._act_action_index += 1
-            return action
-
-        return None
+        # Produce new actions if needed
+        self._produce_actions_act(observation, observation_features)
+        # Consume and return next action
+        return self.consume_action()
 
     def has_pending_actions(self) -> bool:
         """Check if there are pending actions to execute.

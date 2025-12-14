@@ -10,9 +10,8 @@ import logging
 import time
 from dataclasses import dataclass
 from enum import Enum
-from queue import Empty, Queue
 from threading import Event, Lock, Thread
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from communication.messages import SystemState
 from lerobot.processor.factory import (
@@ -24,8 +23,6 @@ from policies.base import PolicyWrapper
 from torch import Tensor
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from lerobot.robots import RobotConfig
 
 logger = logging.getLogger(__name__)
@@ -93,7 +90,7 @@ class RobotWrapper:
 
 
 class ActionExecutor:
-    """Executes actions on a robot arm from an action queue."""
+    """Executes actions on a robot arm by consuming from a policy's action queue."""
 
     def __init__(
         self,
@@ -101,7 +98,7 @@ class ActionExecutor:
         robot: RobotWrapper,
         shutdown_event: Event,
         fps: float = 30.0,
-        connection_check: "Callable[[], bool] | None" = None,
+        connection_check: Callable[[], bool] | None = None,
     ):
         """Initialize the action executor.
 
@@ -118,12 +115,25 @@ class ActionExecutor:
         self.fps = fps
         self._connection_check = connection_check
 
-        self._action_queue: Queue[Tensor | None] = Queue()
+        # Callback to get next action from the policy's queue
+        # This is set by set_action_source() after PolicyRunner is created
+        self._get_action_fn: Callable[[], Tensor | None] | None = None
         self._thread: Thread | None = None
         self._robot_action_processor = make_default_robot_action_processor()
 
+    def set_action_source(self, get_action_fn: Callable[[], Tensor | None]) -> None:
+        """Set the callback to get actions from the policy's queue.
+
+        Args:
+            get_action_fn: Callable that returns the next action or None
+        """
+        self._get_action_fn = get_action_fn
+
     def start(self) -> None:
         """Start the action executor thread."""
+        if self._get_action_fn is None:
+            raise RuntimeError("Action source not set. Call set_action_source() first.")
+
         self._thread = Thread(
             target=self._run,
             daemon=True,
@@ -135,15 +145,6 @@ class ActionExecutor:
     def stop(self) -> None:
         """Stop the action executor thread."""
         if self._thread and self._thread.is_alive():
-            # Put None to unblock the queue
-            try:
-                self._action_queue.put(None)
-            except Exception as e:
-                # Don't swallow exceptions; this can hide shutdown issues.
-                logger.debug(
-                    "Failed to unblock action queue during stop(): %s", e, exc_info=True
-                )
-
             # Wait briefly for thread to stop - force exit timer will handle stuck threads
             self._thread.join(timeout=1.0)
             if self._thread.is_alive():
@@ -152,29 +153,8 @@ class ActionExecutor:
                 )
             self._thread = None
 
-    def put_action(self, action: Tensor) -> None:
-        """Add an action to the queue.
-
-        Args:
-            action: Action tensor to execute
-        """
-        self._action_queue.put(action)
-
-    def clear_queue(self) -> None:
-        """Clear all pending actions from the queue."""
-        while not self._action_queue.empty():
-            try:
-                self._action_queue.get_nowait()
-            except Empty:
-                break
-
-    @property
-    def queue_size(self) -> int:
-        """Get the current queue size."""
-        return self._action_queue.qsize()
-
     def _run(self) -> None:
-        """Main executor loop."""
+        """Main executor loop - consumes actions from the policy's queue."""
         action_interval = 1.0 / self.fps
         action_count = 0
 
@@ -183,28 +163,20 @@ class ActionExecutor:
                 # Check server connection before processing actions
                 if self._connection_check is not None and not self._connection_check():
                     # Not connected to server, skip action execution
-                    # Clear any pending actions since we can't execute them safely
-                    while not self._action_queue.empty():
-                        try:
-                            self._action_queue.get_nowait()
-                        except Empty:
-                            break
                     time.sleep(0.1)
                     continue
 
                 start_time = time.perf_counter()
 
-                try:
-                    action = self._action_queue.get(timeout=0.1)
-                except Empty:
-                    # Check shutdown while waiting
-                    if self.shutdown_event.is_set():
-                        break
-                    continue
+                # Get action from the policy's queue via callback
+                action = self._get_action_fn()
 
                 if action is None:
-                    # Shutdown signal
-                    break
+                    # No action available, wait briefly and retry
+                    if self.shutdown_event.is_set():
+                        break
+                    time.sleep(0.01)
+                    continue
 
                 if self.shutdown_event.is_set():
                     break
@@ -262,37 +234,33 @@ class ActionExecutor:
 
 
 class PolicyRunner:
-    """Runs policy inference and feeds actions to the executor."""
+    """Runs policy inference and produces actions into the policy's queue.
+
+    Works with ActionExecutor which consumes from the same policy queue.
+    This two-thread architecture is required for proper RTC (Real-Time Chunking).
+    """
 
     def __init__(
         self,
         arm_id: ArmId,
         robot: RobotWrapper,
-        executor: ActionExecutor,
         shutdown_event: Event,
         fps: float = 30.0,
-        queue_threshold: int = 0,
-        connection_check: "Callable[[], bool] | None" = None,
+        connection_check: Callable[[], bool] | None = None,
     ):
         """Initialize the policy runner.
 
         Args:
             arm_id: Identifier for this arm
             robot: Robot wrapper instance
-            executor: Action executor for this arm
             shutdown_event: Event to signal shutdown
             fps: Inference frequency
-            queue_threshold: Only run inference when executor queue size <= this value.
-                             Set to 0 to only infer when queue is empty (recommended
-                             for ACT policies without RTC).
             connection_check: Optional callable that returns True if connected to server
         """
         self.arm_id = arm_id
         self.robot = robot
-        self.executor = executor
         self.shutdown_event = shutdown_event
         self.fps = fps
-        self.queue_threshold = queue_threshold
         self._connection_check = connection_check
 
         self._current_policy: PolicyWrapper | None = None
@@ -336,14 +304,6 @@ class PolicyRunner:
             )
 
             if self._current_policy != policy:
-                # Clear pending actions when switching policies
-                queue_size = self.executor.queue_size
-                if queue_size > 0:
-                    logger.info(
-                        f"  🧹 {self.arm_id.value.capitalize()} arm: Clearing {queue_size} pending actions"
-                    )
-                self.executor.clear_queue()
-
                 self._current_policy = policy
                 if policy:
                     policy.reset()
@@ -358,6 +318,19 @@ class PolicyRunner:
                         f"{old_policy_name} → None (idle)"
                     )
 
+    def get_next_action(self) -> Tensor | None:
+        """Get the next action from the current policy's queue.
+
+        This is called by the ActionExecutor (consumer thread).
+
+        Returns:
+            Action tensor, or None if no action available or no policy active
+        """
+        with self._policy_lock:
+            if self._current_policy is None or not self._active.is_set():
+                return None
+            return self._current_policy.consume_action()
+
     def activate(self) -> None:
         """Activate the policy runner to start producing actions."""
         self._active.set()
@@ -365,10 +338,9 @@ class PolicyRunner:
     def deactivate(self) -> None:
         """Deactivate the policy runner (stop producing actions)."""
         self._active.clear()
-        self.executor.clear_queue()
 
     def _run(self) -> None:
-        """Main inference loop."""
+        """Main inference loop - produces actions into the policy's queue."""
         inference_interval = 1.0 / self.fps
 
         try:
@@ -407,19 +379,6 @@ class PolicyRunner:
                 if self.shutdown_event.is_set():
                     break
 
-                # Only run inference when queue is low enough
-                # This matches the pattern in eval_with_real_robot.py
-                if self.executor.queue_size > self.queue_threshold:
-                    # Queue has enough actions, sleep briefly to avoid busy waiting
-                    # Check shutdown during sleep
-                    if self.shutdown_event.is_set():
-                        break
-                    time.sleep(0.01)
-                    continue
-
-                if self.shutdown_event.is_set():
-                    break
-
                 start_time = time.perf_counter()
 
                 try:
@@ -431,17 +390,16 @@ class PolicyRunner:
                     if self.shutdown_event.is_set():
                         break
 
-                    # Get action from policy - this might block, but we check shutdown before
-                    action = policy.get_action(
+                    # Produce actions into the policy's queue
+                    # The executor thread will consume from this queue
+                    produced = policy.produce_actions(
                         obs,
                         self.robot.observation_features,
                     )
 
-                    if self.shutdown_event.is_set():
-                        break
-
-                    if action is not None:
-                        self.executor.put_action(action)
+                    if not produced:
+                        # Queue is full enough, sleep briefly before checking again
+                        time.sleep(0.01)
 
                 except Exception as e:
                     logger.exception(f"Error in {self.arm_id.value} inference: {e}")
@@ -472,7 +430,15 @@ class PolicyRunner:
 
 
 class ArmController:
-    """Main controller coordinating both robot arms and their policies."""
+    """Main controller coordinating both robot arms and their policies.
+
+    Architecture for proper RTC (Real-Time Chunking):
+    - Each arm has two threads sharing the same action queue (in the policy):
+      - Producer thread (PolicyRunner): runs inference, fills the queue
+      - Consumer thread (ActionExecutor): pulls actions, sends to robot
+    - Blue arm threads share blue arm's policy queue
+    - Black arm threads share black arm's policy queue
+    """
 
     def __init__(
         self,
@@ -483,8 +449,8 @@ class ArmController:
         sort_policy: PolicyWrapper,
         fps: float = 30.0,
         shutdown_event: Event | None = None,
-        connection_check: "Callable[[], bool] | None" = None,
-        queue_threshold: int = 0,
+        connection_check: Callable[[], bool] | None = None,
+        queue_threshold: int = 0,  # Kept for API compatibility, now unused
     ):
         """Initialize the arm controller.
 
@@ -499,9 +465,8 @@ class ArmController:
             connection_check: Optional callable that returns True if connected to server.
                               When provided, policy inference and actions are only executed
                               while connected.
-            queue_threshold: Only run inference when executor queue size <= this value.
-                             Set to 0 to only infer when queue is empty (recommended
-                             for ACT policies without RTC).
+            queue_threshold: Deprecated, kept for API compatibility. Queue threshold is now
+                             managed by the policy's action_queue_size_to_get_new_actions.
         """
         self.fps = fps
         self._shutdown_event = shutdown_event if shutdown_event is not None else Event()
@@ -519,7 +484,7 @@ class ArmController:
         self._blue_robot = RobotWrapper(make_robot_from_config(blue_arm_config))
         self._black_robot = RobotWrapper(make_robot_from_config(black_arm_config))
 
-        # Create executors
+        # Create executors (consumer threads)
         self._blue_executor = ActionExecutor(
             ArmId.BLUE, self._blue_robot, self._shutdown_event, fps, connection_check
         )
@@ -527,25 +492,26 @@ class ArmController:
             ArmId.BLACK, self._black_robot, self._shutdown_event, fps, connection_check
         )
 
-        # Create policy runners
+        # Create policy runners (producer threads)
         self._blue_runner = PolicyRunner(
             ArmId.BLUE,
             self._blue_robot,
-            self._blue_executor,
             self._shutdown_event,
             fps,
-            queue_threshold=queue_threshold,
             connection_check=connection_check,
         )
         self._black_runner = PolicyRunner(
             ArmId.BLACK,
             self._black_robot,
-            self._black_executor,
             self._shutdown_event,
             fps,
-            queue_threshold=queue_threshold,
             connection_check=connection_check,
         )
+
+        # Wire up executors to get actions from runners
+        # This makes executor (consumer) and runner (producer) share the same queue
+        self._blue_executor.set_action_source(self._blue_runner.get_next_action)
+        self._black_executor.set_action_source(self._black_runner.get_next_action)
 
     def connect(self) -> None:
         """Connect to both robots."""
