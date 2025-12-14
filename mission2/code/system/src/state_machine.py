@@ -7,6 +7,7 @@ based on CV detection events.
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass
 from enum import Enum
 from typing import Callable
@@ -38,7 +39,9 @@ class PackageSortingStateMachine:
     State transitions:
     - RUNNING -> FLIPPING: package detected with BLANK (barcode hidden)
     - RUNNING -> SORTING: package detected with YELLOW/RED (barcode visible)
-    - FLIPPING -> SORTING: barcode becomes visible (YELLOW/RED)
+    - FLIPPING -> SORTING: after detecting YELLOW/RED, wait flipping_to_sorting_delay
+                           (ignores BLANK/undetected during flip to handle package
+                           temporarily leaving camera view)
     - SORTING -> RUNNING: package disappears from detection zone
     """
 
@@ -46,6 +49,7 @@ class PackageSortingStateMachine:
         self,
         on_state_change: Callable[[SystemState], None] | None = None,
         sorting_to_running_delay: float = 2.0,
+        flipping_to_sorting_delay: float = 2.0,
     ):
         """Initialize the state machine.
 
@@ -54,13 +58,21 @@ class PackageSortingStateMachine:
             sorting_to_running_delay: Delay in seconds before transitioning
                                       from SORTING to RUNNING (to allow robot
                                       to finish placing package)
+            flipping_to_sorting_delay: Delay in seconds after detecting YELLOW/RED
+                                       during FLIPPING before transitioning to SORTING
+                                       (ignores BLANK/undetected during this time)
         """
         self._state = SystemState.RUNNING
         self._on_state_change = on_state_change
         self._sorting_to_running_delay = sorting_to_running_delay
+        self._flipping_to_sorting_delay = flipping_to_sorting_delay
 
         # Track if we're waiting to transition from SORTING to RUNNING
         self._sorting_complete_pending = False
+
+        # Track when we detected YELLOW/RED during FLIPPING state
+        # (delay starts from this point, not from entering FLIPPING)
+        self._flipping_color_detected_time: float | None = None
 
     @property
     def state(self) -> SystemState:
@@ -72,6 +84,11 @@ class PackageSortingStateMachine:
         """Get the delay for SORTING -> RUNNING transition."""
         return self._sorting_to_running_delay
 
+    @property
+    def flipping_to_sorting_delay(self) -> float:
+        """Get the delay for FLIPPING -> SORTING transition."""
+        return self._flipping_to_sorting_delay
+
     def process_cv_status(self, status: CVStatus) -> SystemState | None:
         """Process CV detection status and potentially transition state.
 
@@ -82,9 +99,28 @@ class PackageSortingStateMachine:
             New state if transition occurred, None otherwise
         """
         old_state = self._state
+
+        # While in FLIPPING, track when we first detect YELLOW/RED
+        # (the delay to SORTING starts from this point)
+        if (
+            self._state == SystemState.FLIPPING
+            and self._flipping_color_detected_time is None
+            and status.package_detected
+            and status.color in (DetectionColor.YELLOW, DetectionColor.RED)
+        ):
+            self._flipping_color_detected_time = time.monotonic()
+            logger.info(
+                f"Detected {status.color.value} during FLIPPING, "
+                f"starting {self._flipping_to_sorting_delay}s delay to SORTING"
+            )
+
         new_state = self._compute_next_state(status)
 
         if new_state != old_state:
+            # Leaving FLIPPING state, clear the timer
+            if old_state == SystemState.FLIPPING:
+                self._flipping_color_detected_time = None
+
             self._state = new_state
             logger.info(f"State transition: {old_state.value} -> {new_state.value}")
             if self._on_state_change:
@@ -114,15 +150,16 @@ class PackageSortingStateMachine:
             return SystemState.RUNNING
 
         elif self._state == SystemState.FLIPPING:
-            if status.package_detected:
-                if status.color in (DetectionColor.YELLOW, DetectionColor.RED):
-                    # Flip complete, barcode now visible -> can sort
+            # During flipping, ignore CV status and only transition to SORTING
+            # after we detect YELLOW/RED and the delay has passed.
+            # This handles cases where flip temporarily moves package out of view.
+            if self._flipping_color_detected_time is not None:
+                elapsed = time.monotonic() - self._flipping_color_detected_time
+                if elapsed >= self._flipping_to_sorting_delay:
+                    # Delay complete -> transition to SORTING
                     return SystemState.SORTING
-                # Still blank or no detection -> keep flipping
-                return SystemState.FLIPPING
-            # Package disappeared during flipping (shouldn't happen) -> back to running
-            logger.warning("Package disappeared during flipping")
-            return SystemState.RUNNING
+            # Still waiting for color detection or delay to complete
+            return SystemState.FLIPPING
 
         elif self._state == SystemState.SORTING:
             if not status.package_detected:
@@ -169,4 +206,3 @@ def cv_api_status_to_cv_status(api_response: dict) -> CVStatus:
             logger.warning(f"Unknown color from CV API: {color_str}")
 
     return CVStatus(package_detected=package_detected, color=color)
-
