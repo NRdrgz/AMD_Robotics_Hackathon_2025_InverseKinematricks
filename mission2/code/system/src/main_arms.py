@@ -46,9 +46,9 @@ from communication.messages import SystemState
 from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
 from lerobot.robots.so101_follower import SO101FollowerConfig
 from policies.base import PolicyWrapper
-from policies.flip import create_flip_policy_config
-from policies.pick import create_pick_policy_config
-from policies.sort import create_sort_policy_config
+from policies.flip import DEFAULT_FLIP_POLICY_PATH, create_flip_policy_config
+from policies.pick import DEFAULT_PICK_POLICY_PATH, create_pick_policy_config
+from policies.sort import DEFAULT_SORT_POLICY_PATH, create_sort_policy_config
 
 # Re-assert our logging configuration after lerobot imports to ensure it's not overridden
 root_logger = logging.getLogger()
@@ -191,19 +191,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--pick-policy-path",
         type=str,
-        default="giacomoran/hackathon_amd_mission2_blue_pick",
+        default=DEFAULT_PICK_POLICY_PATH,
         help="HuggingFace path for pick policy",
     )
     parser.add_argument(
         "--flip-policy-path",
         type=str,
-        default="giacomoran/hackathon_amd_mission2_black_flip_act",
+        default=DEFAULT_FLIP_POLICY_PATH,
         help="HuggingFace path for flip policy",
     )
     parser.add_argument(
         "--sort-policy-path",
         type=str,
-        default="giacomoran/hackathon_amd_mission2_black_sort",
+        default=DEFAULT_SORT_POLICY_PATH,
         help="HuggingFace path for sort policy",
     )
     parser.add_argument(
