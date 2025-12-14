@@ -1,13 +1,13 @@
 """Flip policy configuration for the black arm.
 
 This policy flips packages on the conveyor belt to expose the barcode.
-Based on ACT (no RTC).
+Based on SmolVLA (no RTC).
 """
 
 from .base import PolicyConfig, PolicyType
 
 # Default HuggingFace path for the flip policy
-DEFAULT_FLIP_POLICY_PATH = "giacomoran/hackathon_amd_mission2_black_flip_act"
+DEFAULT_FLIP_POLICY_PATH = "giacomoran/hackathon_amd_mission2_black_flip_smolvla_v3"
 
 # Default task prompt
 DEFAULT_FLIP_TASK = (
@@ -33,10 +33,9 @@ def create_flip_policy_config(
     """
     return PolicyConfig(
         hf_path=hf_path,
-        policy_type=PolicyType.ACT,
+        policy_type=PolicyType.SMOLVLA,
         device=device,
-        rtc_enabled=False,  # ACT doesn't use RTC
+        rtc_enabled=False,  # RTC disabled for SmolVLA
         fps=30.0,
         task=task,
     )
-
