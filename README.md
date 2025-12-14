@@ -127,7 +127,7 @@ Then we trained SmolVLA models (5 hours for 80,000 steps).
 Here are our 3 final trained models:
 - [Arm 1 Pick packages from cardboard](https://huggingface.co/giacomoran/hackathon_amd_mission2_blue_pick_cardboard_smolvla_v2) (SmolVLA)
 - [Arm 2 Flip packages](https://huggingface.co/giacomoran/hackathon_amd_mission2_black_flip_smolvla_v3) (SmolVLA)
-- [Arm 2 Sort packages](https://huggingface.co/giacomoran/hackathon_amd_mission2_black_sort_smolvla_v3) (SmolVLA)
+- [Arm 2 Sort packages](https://huggingface.co/giacomoran/hackathon_amd_mission2_black_sort_smolvla_v5) (SmolVLA)
 
 #### Inference
 
@@ -146,7 +146,6 @@ Here is a screenshot of `htop` running during inference. As shown below, our sys
 
 ### Mission 1
 
-- [README](https://github.com/NRdrgz/AMD_Robotics_Hackathon_2025_InverseKinematricks/blob/main/mission1/README.md)
 - [Video](https://github.com/NRdrgz/AMD_Robotics_Hackathon_2025_InverseKinematricks/raw/refs/heads/main/mission1/videos/trained_policy_mission_1.mp4)
 - [Dataset on HF](https://huggingface.co/datasets/giacomoran/hackathon_amd_mission1)
 - [Model on HF](https://huggingface.co/giacomoran/hackathon_amd_mission1)
@@ -156,9 +155,9 @@ Here is a screenshot of `htop` running during inference. As shown below, our sys
 - [README](https://github.com/NRdrgz/AMD_Robotics_Hackathon_2025_InverseKinematricks/blob/main/README.md)
 - *Link to a video of your robot performing the task*
 - *Models on HF*
-  - [Arm 1 Pick packages from cardboard](https://huggingface.co/giacomoran/hackathon_amd_mission2_blue_pick_act_cardboard_v2) (ACT model)
+  - [Arm 1 Pick packages from cardboard](https://huggingface.co/giacomoran/hackathon_amd_mission2_blue_pick_cardboard_smolvla_v2) (SmolVLA)
   - [Arm 2 Flip packages](https://huggingface.co/giacomoran/hackathon_amd_mission2_black_flip_smolvla_v3) (SmolVLA)
-  - [Arm 2 Sort packages](https://huggingface.co/giacomoran/hackathon_amd_mission2_black_sort_smolvla_v3) (SmolVLA)
+  - [Arm 2 Sort packages](https://huggingface.co/giacomoran/hackathon_amd_mission2_black_sort_smolvla_v5) (SmolVLA)
 - *Datasets on HF*
   - [Arm 1 Pick packages from cardboard](https://huggingface.co/datasets/giacomoran/hackathon_amd_mission2_blue_pick_cardboard)
   - [Arm 2 Flip packages](https://huggingface.co/datasets/giacomoran/hackathon_amd_mission2_black_flip)
