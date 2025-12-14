@@ -1,0 +1,56 @@
+{
+  "os":  "Linux-6.1.0-39-amd64-x86_64-with-glibc2.39",
+  "python":  "CPython 3.12.3",
+  "startedAt":  "2025-12-14T01:16:42.784229Z",
+  "args":  [
+    "--dataset.repo_id=giacomoran/hackathon_amd_mission2_blue_pick_cardboard",
+    "--batch_size=64",
+    "--steps=10000",
+    "--output_dir=outputs/train/hackathon_amd_mission2_blue_pick_act_cardboard",
+    "--job_name=hackathon_amd_mission2_blue_pick_act_cardboard",
+    "--policy.repo_id=giacomoran/hackathon_amd_mission2_blue_pick_act_cardboard",
+    "--policy.device=cuda",
+    "--policy.type=act",
+    "--policy.push_to_hub=true",
+    "--wandb.enable=true",
+    "--policy.chunk_size=30",
+    "--policy.n_action_steps=30",
+    "--optimizer.lr=5e-5",
+    "--policy.optimizer_lr=5e-5",
+    "--policy.optimizer_lr_backbone=5e-5",
+    "--save_freq=2000"
+  ],
+  "program":  "/opt/venv/bin/lerobot-train",
+  "root":  "outputs/train/hackathon_amd_mission2_blue_pick_act_cardboard",
+  "host":  "robotics-jupyter-launcher-3292",
+  "executable":  "/opt/venv/bin/python",
+  "cpu_count":  160,
+  "cpu_count_logical":  160,
+  "gpu":  "AMD Instinct MI300X VF",
+  "gpu_count":  1,
+  "disk":  {
+    "/":  {
+      "total":  "2162185003008",
+      "used":  "561254379520"
+    }
+  },
+  "memory":  {
+    "total":  "2029207175168"
+  },
+  "gpu_amd":  [
+    {
+      "id":  "0",
+      "uniqueId":  "0x9588f6d903156192",
+      "vbiosVersion":  "113-M3000100-103",
+      "performanceLevel":  "auto",
+      "maxPower":  "750.0",
+      "series":  "AMD Instinct MI300X VF",
+      "model":  "0x74b5",
+      "vendor":  "Advanced Micro Devices, Inc. [AMD/ATI]",
+      "sku":  "M3000100",
+      "sclkRange":  "500Mhz - 2100Mhz",
+      "mclkRange":  "900Mhz - 1300Mhz"
+    }
+  ],
+  "writerId":  "bu1q2vu4yq606ce7c1ukdxgjobhdkygi"
+}

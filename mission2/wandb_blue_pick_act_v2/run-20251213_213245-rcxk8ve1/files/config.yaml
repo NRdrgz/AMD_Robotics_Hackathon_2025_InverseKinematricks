@@ -1,0 +1,233 @@
+_wandb:
+    value:
+        cli_version: 0.21.4
+        e:
+            2svnllednkeqlzqaxuodsb3mf9cetj95:
+                args:
+                    - --dataset.repo_id=giacomoran/hackathon_amd_mission2_blue_pick
+                    - --batch_size=64
+                    - --steps=10000
+                    - --output_dir=outputs/train/hackathon_amd_mission2_blue_pick_act_v2
+                    - --job_name=hackathon_amd_mission2_blue_pick_act_v2
+                    - --policy.repo_id=giacomoran/hackathon_amd_mission2_blue_pick_act_v2
+                    - --policy.device=cuda
+                    - --policy.type=act
+                    - --policy.push_to_hub=true
+                    - --wandb.enable=true
+                    - --policy.chunk_size=30
+                    - --policy.n_action_steps=30
+                    - --optimizer.lr=5e-5
+                    - --policy.optimizer_lr=5e-5
+                    - --policy.optimizer_lr_backbone=5e-5
+                    - --save_freq=2000
+                cpu_count: 160
+                cpu_count_logical: 160
+                disk:
+                    /:
+                        total: "2162185003008"
+                        used: "461387599872"
+                executable: /opt/venv/bin/python
+                gpu: AMD Instinct MI300X VF
+                gpu_amd:
+                    - id: "0"
+                      maxPower: "750.0"
+                      mclkRange: 900Mhz - 1300Mhz
+                      model: "0x74b5"
+                      performanceLevel: auto
+                      sclkRange: 500Mhz - 2100Mhz
+                      series: AMD Instinct MI300X VF
+                      sku: M3000100
+                      uniqueId: "0x9588f6d903156192"
+                      vbiosVersion: 113-M3000100-103
+                      vendor: Advanced Micro Devices, Inc. [AMD/ATI]
+                gpu_count: 1
+                host: robotics-jupyter-launcher-3292
+                memory:
+                    total: "2029207175168"
+                os: Linux-6.1.0-39-amd64-x86_64-with-glibc2.39
+                program: /opt/venv/bin/lerobot-train
+                python: CPython 3.12.3
+                root: outputs/train/hackathon_amd_mission2_blue_pick_act_v2
+                startedAt: "2025-12-13T21:32:45.770744Z"
+                writerId: 2svnllednkeqlzqaxuodsb3mf9cetj95
+        m: []
+        python_version: 3.12.3
+        t:
+            "1":
+                - 1
+                - 11
+                - 41
+                - 49
+                - 51
+                - 71
+                - 83
+            "2":
+                - 1
+                - 11
+                - 41
+                - 49
+                - 51
+                - 71
+                - 83
+            "3":
+                - 13
+                - 15
+                - 16
+                - 61
+            "4": 3.12.3
+            "5": 0.21.4
+            "6": 4.57.3
+            "10":
+                - 21
+            "12": 0.21.4
+            "13": linux-x86_64
+batch_size:
+    value: 64
+checkpoint_path:
+    value: null
+dataset:
+    value:
+        episodes: null
+        image_transforms:
+            enable: false
+            max_num_transforms: 3
+            random_order: false
+            tfs:
+                affine:
+                    kwargs:
+                        degrees:
+                            - -5
+                            - 5
+                        translate:
+                            - 0.05
+                            - 0.05
+                    type: RandomAffine
+                    weight: 1
+                brightness:
+                    kwargs:
+                        brightness:
+                            - 0.8
+                            - 1.2
+                    type: ColorJitter
+                    weight: 1
+                contrast:
+                    kwargs:
+                        contrast:
+                            - 0.8
+                            - 1.2
+                    type: ColorJitter
+                    weight: 1
+                hue:
+                    kwargs:
+                        hue:
+                            - -0.05
+                            - 0.05
+                    type: ColorJitter
+                    weight: 1
+                saturation:
+                    kwargs:
+                        saturation:
+                            - 0.5
+                            - 1.5
+                    type: ColorJitter
+                    weight: 1
+                sharpness:
+                    kwargs:
+                        sharpness:
+                            - 0.5
+                            - 1.5
+                    type: SharpnessJitter
+                    weight: 1
+        repo_id: giacomoran/hackathon_amd_mission2_blue_pick
+        revision: null
+        root: null
+        streaming: false
+        use_imagenet_stats: true
+        video_backend: torchcodec
+env:
+    value: null
+eval:
+    value:
+        batch_size: 50
+        n_episodes: 50
+        use_async_envs: false
+eval_freq:
+    value: 20000
+job_name:
+    value: hackathon_amd_mission2_blue_pick_act_v2
+log_freq:
+    value: 200
+num_workers:
+    value: 4
+optimizer:
+    value:
+        betas:
+            - 0.9
+            - 0.999
+        eps: 1e-08
+        grad_clip_norm: 10
+        lr: 5e-05
+        type: adamw
+        weight_decay: 0.0001
+output_dir:
+    value: outputs/train/hackathon_amd_mission2_blue_pick_act_v2
+policy:
+    value:
+        chunk_size: 30
+        device: cuda
+        dim_feedforward: 3200
+        dim_model: 512
+        dropout: 0.1
+        feedforward_activation: relu
+        kl_weight: 10
+        latent_dim: 32
+        license: null
+        n_action_steps: 30
+        n_decoder_layers: 1
+        n_encoder_layers: 4
+        n_heads: 8
+        n_obs_steps: 1
+        n_vae_encoder_layers: 4
+        normalization_mapping:
+            ACTION: MEAN_STD
+            STATE: MEAN_STD
+            VISUAL: MEAN_STD
+        optimizer_lr: 5e-05
+        optimizer_lr_backbone: 5e-05
+        optimizer_weight_decay: 0.0001
+        pre_norm: false
+        pretrained_backbone_weights: ResNet18_Weights.IMAGENET1K_V1
+        pretrained_path: null
+        private: null
+        push_to_hub: true
+        replace_final_stride_with_dilation: false
+        repo_id: giacomoran/hackathon_amd_mission2_blue_pick_act_v2
+        tags: null
+        temporal_ensemble_coeff: null
+        type: act
+        use_amp: false
+        use_vae: true
+        vision_backbone: resnet18
+resume:
+    value: false
+save_checkpoint:
+    value: true
+save_freq:
+    value: 2000
+scheduler:
+    value: null
+seed:
+    value: 1000
+steps:
+    value: 10000
+use_policy_training_preset:
+    value: true
+wandb:
+    value:
+        disable_artifact: false
+        enable: true
+        entity: null
+        mode: null
+        notes: null
+        project: lerobot
+        run_id: null
