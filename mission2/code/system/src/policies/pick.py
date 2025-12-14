@@ -34,8 +34,7 @@ def create_pick_policy_config(
         hf_path=hf_path,
         policy_type=PolicyType.ACT,
         device=device,
-        rtc_enabled=False,
-        rtc_execution_horizon=30,
+        rtc_enabled=False,  # ACT does not support RTC
         fps=30.0,
         task=task,
     )

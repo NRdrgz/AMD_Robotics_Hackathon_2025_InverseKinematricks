@@ -9,15 +9,15 @@ This script:
 
 Usage:
     python src/main_arms.py \
-        --blue-arm-port=/dev/ttyACM3 \
-        --black-arm-port=/dev/ttyACM1 \
+        --blue-arm-port=/dev/ttyACM2 \
+        --black-arm-port=/dev/ttyACM0 \
         --blue-top-camera=/dev/video8 \
         --blue-wrist-camera=/dev/video6 \
         --black-top-camera=/dev/video4 \
         --black-wrist-camera=/dev/video2 \
         --blue-arm-id=blue_follower \
         --black-arm-id=black_follower \
-        --conveyor-host=10.33.1.59 \
+        --conveyor-host=10.33.1.85 \
         --device=cuda
 """
 
