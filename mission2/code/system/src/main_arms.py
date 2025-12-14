@@ -239,6 +239,14 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Enable debug logging",
     )
+    parser.add_argument(
+        "--queue-threshold",
+        type=int,
+        default=0,
+        help="Queue threshold for policy inference. Only run inference when executor "
+        "queue size <= this value. Set to 0 to only infer when queue is empty "
+        "(recommended for ACT policies without RTC).",
+    )
 
     return parser.parse_args()
 
@@ -445,6 +453,7 @@ async def run_arms_computer(args: argparse.Namespace) -> None:
             fps=args.fps,
             shutdown_event=shutdown_event,
             connection_check=lambda: ws_client.is_connected,
+            queue_threshold=args.queue_threshold,
         )
 
         # Now set the callbacks
@@ -561,6 +570,7 @@ def main() -> None:
     logger.info(f"  Black arm port: {args.black_arm_port}")
     logger.info(f"  Conveyor host: {args.conveyor_host}:{args.conveyor_port}")
     logger.info(f"  Device: {args.device}")
+    logger.info(f"  Queue threshold: {args.queue_threshold}")
     logger.info("=" * 50)
 
     try:

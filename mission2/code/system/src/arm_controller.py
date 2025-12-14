@@ -484,6 +484,7 @@ class ArmController:
         fps: float = 30.0,
         shutdown_event: Event | None = None,
         connection_check: "Callable[[], bool] | None" = None,
+        queue_threshold: int = 0,
     ):
         """Initialize the arm controller.
 
@@ -498,6 +499,9 @@ class ArmController:
             connection_check: Optional callable that returns True if connected to server.
                               When provided, policy inference and actions are only executed
                               while connected.
+            queue_threshold: Only run inference when executor queue size <= this value.
+                             Set to 0 to only infer when queue is empty (recommended
+                             for ACT policies without RTC).
         """
         self.fps = fps
         self._shutdown_event = shutdown_event if shutdown_event is not None else Event()
@@ -524,15 +528,13 @@ class ArmController:
         )
 
         # Create policy runners
-        # queue_threshold=0 means only run inference when executor queue is empty
-        # This matches eval_with_real_robot.py behavior when RTC is disabled
         self._blue_runner = PolicyRunner(
             ArmId.BLUE,
             self._blue_robot,
             self._blue_executor,
             self._shutdown_event,
             fps,
-            queue_threshold=0,
+            queue_threshold=queue_threshold,
             connection_check=connection_check,
         )
         self._black_runner = PolicyRunner(
@@ -541,7 +543,7 @@ class ArmController:
             self._black_executor,
             self._shutdown_event,
             fps,
-            queue_threshold=0,
+            queue_threshold=queue_threshold,
             connection_check=connection_check,
         )
 
