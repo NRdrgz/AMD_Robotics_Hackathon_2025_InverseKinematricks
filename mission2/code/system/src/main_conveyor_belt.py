@@ -13,8 +13,9 @@ Usage:
         --cv-app-path=../cv_classfication/src/app.py \
         --cv-api-url=http://localhost:5001 \
         --websocket-port=8765 \
-        --sorting-to-running-delay=2.0 \
-        --running-to-sorting-delay=6.0
+        --sorting-to-running-delay=4.0 \
+        --running-to-sorting-delay=8.0 \
+        --flipping-to-sorting-delay=4.0
 """
 
 from __future__ import annotations
@@ -37,6 +38,7 @@ from communication.messages import AckMessage, SystemState
 from communication.server import ConveyorWebSocketServer
 from state_machine import (
     CVStatus,
+    DetectionColor,
     PackageSortingStateMachine,
     cv_api_status_to_cv_status,
 )
@@ -209,6 +211,12 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=6.0,
         help="Delay in seconds before transitioning from RUNNING to SORTING/FLIPPING after package is detected",
+    )
+    parser.add_argument(
+        "--flipping-to-sorting-delay",
+        type=float,
+        default=2.0,
+        help="Delay in seconds before transitioning from FLIPPING to SORTING after barcode becomes visible",
     )
     parser.add_argument(
         "--poll-interval",
@@ -559,6 +567,10 @@ async def run_conveyor_computer(args: argparse.Namespace) -> None:
         running_detection_time: float | None = None
         last_package_detected_in_running: bool = False
 
+        # Track for FLIPPING->SORTING delay (when barcode becomes visible)
+        flipping_to_sorting_time: float | None = None
+        barcode_visible_in_flipping: bool = False
+
         # Main control loop
         while not shutdown_event.is_set():
             # Poll CV API
@@ -602,6 +614,41 @@ async def run_conveyor_computer(args: argparse.Namespace) -> None:
                     running_detection_time = None
                     last_package_detected_in_running = False
                     state_machine.process_cv_status(cv_status)
+                # Handle FLIPPING->SORTING delay (when barcode becomes visible)
+                elif old_state == SystemState.FLIPPING and cv_status.package_detected:
+                    if cv_status.color in (
+                        DetectionColor.YELLOW,
+                        DetectionColor.RED,
+                    ):
+                        # Barcode is visible
+                        if not barcode_visible_in_flipping:
+                            # Barcode just became visible for the first time in FLIPPING state
+                            flipping_to_sorting_time = time.time()
+                            barcode_visible_in_flipping = True
+                            logger.info(
+                                f"Barcode visible in FLIPPING state, waiting {args.flipping_to_sorting_delay}s before transitioning to SORTING"
+                            )
+                            # Don't process status yet, stay in FLIPPING
+                        elif flipping_to_sorting_time is not None:
+                            if (
+                                time.time() - flipping_to_sorting_time
+                                >= args.flipping_to_sorting_delay
+                            ):
+                                # Delay complete, allow transition
+                                state_machine.process_cv_status(cv_status)
+                                flipping_to_sorting_time = None
+                                # Keep barcode_visible_in_flipping True since barcode still visible
+                            else:
+                                # Still waiting, don't process status yet (stay in FLIPPING)
+                                pass
+                        else:
+                            # Already processed transition, continue normally
+                            state_machine.process_cv_status(cv_status)
+                    else:
+                        # Barcode not visible anymore (shouldn't happen, but reset tracking)
+                        flipping_to_sorting_time = None
+                        barcode_visible_in_flipping = False
+                        state_machine.process_cv_status(cv_status)
                 # Handle SORTING->RUNNING delay
                 elif (
                     old_state == SystemState.SORTING and not cv_status.package_detected
@@ -622,6 +669,9 @@ async def run_conveyor_computer(args: argparse.Namespace) -> None:
                     # Reset RUNNING detection tracking when not in RUNNING state
                     running_detection_time = None
                     last_package_detected_in_running = False
+                    # Reset FLIPPING->SORTING tracking when not in FLIPPING state
+                    flipping_to_sorting_time = None
+                    barcode_visible_in_flipping = False
                     state_machine.process_cv_status(cv_status)
 
             # Sleep in small chunks to check shutdown more frequently
@@ -686,6 +736,7 @@ def main() -> None:
     logger.info(f"  WebSocket: {args.websocket_host}:{args.websocket_port}")
     logger.info(f"  Sorting->Running delay: {args.sorting_to_running_delay}s")
     logger.info(f"  Running->Sorting delay: {args.running_to_sorting_delay}s")
+    logger.info(f"  Flipping->Sorting delay: {args.flipping_to_sorting_delay}s")
     logger.info("=" * 50)
 
     try:
